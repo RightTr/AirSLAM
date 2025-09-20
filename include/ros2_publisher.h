@@ -25,39 +25,6 @@
 #include "read_configs.h"
 #include "thread_publisher.h"
 
-// #include "air_slam_interfaces/msg/feature_match.hpp"
-// #include "air_slam_interfaces/msg/feature_message.hpp"
-// #include "air_slam_interfaces/msg/frame_pose_message.hpp"
-// #include "air_slam_interfaces/msg/keyframe_message.hpp"
-// #include "air_slam_interfaces/msg/map_message.hpp"
-// #include "air_slam_interfaces/msg/map_line_message.hpp"
-// #include "air_slam_interfaces/msg/reloc_message.hpp"
-// #include "air_slam_interfaces/msg/points_on_line.hpp"
-
-// using FeatureMessage_ros = air_slam_interfaces::msg::FeatureMessage;
-// using FeatureMessagePtr_ros = std::shared_ptr<FeatureMessage_ros>;
-// using FeatureMessageConstPtr_ros = std::shared_ptr<const FeatureMessage_ros>;
-
-// using FramePoseMessage_ros = air_slam_interfaces::msg::FramePoseMessage;
-// using FramePoseMessagePtr_ros = std::shared_ptr<FramePoseMessage_ros>;
-// using FramePoseMessageConstPtr_ros = std::shared_ptr<const FramePoseMessage_ros>;
-
-// using KeyframeMessage_ros = air_slam_interfaces::msg::KeyframeMessage;
-// using KeyframeMessagePtr_ros = std::shared_ptr<KeyframeMessage_ros>;
-// using KeyframeMessageConstPtr_ros = std::shared_ptr<const KeyframeMessage_ros>;
-
-// using MapMessage_ros = air_slam_interfaces::msg::MapMessage;
-// using MapMessagePtr_ros = std::shared_ptr<MapMessage_ros>;
-// using MapMessageConstPtr_ros = std::shared_ptr<const MapMessage_ros>;
-
-// using MapLineMessage_ros = air_slam_interfaces::msg::MapLineMessage;
-// using MapLineMessagePtr_ros = std::shared_ptr<MapLineMessage_ros>;
-// using MapLineMessageConstPtr_ros = std::shared_ptr<const MapLineMessage_ros>;
-
-// using RelocMessage_ros = air_slam_interfaces::msg::RelocMessage;
-// using RelocMessagePtr_ros = std::shared_ptr<RelocMessage_ros>;
-// using RelocMessageConstPtr_ros = std::shared_ptr<const RelocMessage_ros>;
-
 enum FeatureMessageType {
   VOFeature = 0,
   RelocFeature = 1

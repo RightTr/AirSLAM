@@ -57,17 +57,6 @@ Camera::Camera(const std::string& camera_file){
     Eigen::Matrix3d R10_eigen = Tc1c0.block<3, 3>(0, 0);
     Eigen::Vector3d t10_eigen = Tc1c0.block<3, 1>(0, 3);
 
-    // Eigen::Matrix3d R10_eigen; // Nus thermal camera extrinsics
-    // R10_eigen << 
-    //   0.9998928479139975, 0.006664201062753905, 0.013033844967273217,
-    //   -0.0065988424903717065, 0.999965470127153, -0.005051121773369857,
-    //   -0.01306705660135398, 0.004964572245152228, 0.9999022977542356;
-    // Eigen::Vector3d t10_eigen;
-    // t10_eigen <<
-    //   -0.1216520307054718,
-    //   0.00037876701143810795,
-    //   -0.0015966275775746094;
-
     cv::eigen2cv(R10_eigen, R10);
     cv::eigen2cv(t10_eigen, t10);
 
