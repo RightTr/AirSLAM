@@ -85,6 +85,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/map_user.cc
   src/timer.cc
   src/debug.cc
+  src/ros2_subsriber.cc
 )
 
 target_link_libraries(
@@ -129,6 +130,10 @@ ament_target_dependencies(map_refinement rclcpp std_msgs geometry_msgs nav_msgs 
 add_executable(relocalization demo/relocalization.cpp)
 target_link_libraries(relocalization ${PROJECT_NAME}_lib)
 ament_target_dependencies(relocalization rclcpp std_msgs geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport tf2 tf2_ros)
+
+add_executable(visual_odometry_online demo/visual_odometry_online.cpp)
+target_link_libraries(visual_odometry_online ${PROJECT_NAME}_lib)
+ament_target_dependencies(visual_odometry_online rclcpp std_msgs geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport tf2 tf2_ros)
 
 # add_executable(test_feature demo/test_feature.cpp)
 # target_link_libraries(test_feature ${PROJECT_NAME}_lib)

@@ -198,6 +198,18 @@ struct RosPublisherConfig{
   std::string reloc_topic;
 };
 
+struct RosSubscriberConfig
+{
+  RosSubscriberConfig() {}
+  void Load(const YAML::Node& ros_subscriber_node){
+    left_topic = ros_subscriber_node["left_topic"].as<std::string>();   
+    right_topic = ros_subscriber_node["right_topic"].as<std::string>();   
+    buffer_size = ros_subscriber_node["buffer_size"].as<int>(10);   
+  }
+  std::string left_topic;
+  std::string right_topic;
+  int buffer_size;
+}
 
 struct VisualOdometryConfigs{
   std::string dataroot;
@@ -237,6 +249,48 @@ struct VisualOdometryConfigs{
     tracking_optimization_config.Load(file_node["optimization"]["tracking"]);
     backend_optimization_config.Load(file_node["optimization"]["backend"]);
     ros_publisher_config.Load(file_node["ros_publisher"]);
+  }
+};
+
+struct VisualOdometryOnlineConfigs{
+  std::string camera_config_path;
+  std::string model_dir;
+  std::string saving_dir;
+
+  PLNetConfig plnet_config;
+  SuperPointConfig superpoint_config;
+  PointMatcherConfig point_matcher_config;
+  LineDetectorConfig line_detector_config;
+  KeyframeConfig keyframe_config;
+  OptimizationConfig tracking_optimization_config;
+  OptimizationConfig backend_optimization_config;
+  RosPublisherConfig ros_publisher_config;
+  RosSubscriberConfig ros_subscriber_config;
+
+  VisualOdometryOnlineConfigs() {}
+
+  VisualOdometryOnlineConfigs(const std::string& config_file_, const std::string& model_dir_){
+    model_dir = model_dir_;
+
+    std::cout << "config_file = " << config_file_ << std::endl;
+    if(!FileExists(config_file_)){
+      std::cout << "config file: " << config_file_ << " doesn't exist" << std::endl;
+      return;
+    }
+    YAML::Node file_node = YAML::LoadFile(config_file_);
+
+    plnet_config.Load(file_node["plnet"]);
+    plnet_config.SetModelPath(model_dir);
+
+    point_matcher_config.Load(file_node["point_matcher"]);
+    point_matcher_config.onnx_file = ConcatenateFolderAndFileName(model_dir, point_matcher_config.onnx_file);
+    point_matcher_config.engine_file = ConcatenateFolderAndFileName(model_dir, point_matcher_config.engine_file);
+
+    keyframe_config.Load(file_node["keyframe"]);
+    tracking_optimization_config.Load(file_node["optimization"]["tracking"]);
+    backend_optimization_config.Load(file_node["optimization"]["backend"]);
+    ros_publisher_config.Load(file_node["ros_publisher"]);
+    ros_subscriber_config.Load(file_node["ros_subscriber"]);
   }
 };
 
