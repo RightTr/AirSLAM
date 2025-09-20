@@ -646,8 +646,7 @@ namespace tensorrt_log
             // clang-format off
             switch (feature)
             {
-                case PreviewFeature::kFASTER_DYNAMIC_SHAPES_0805: return "kFASTER_DYNAMIC_SHAPES_0805";
-                case PreviewFeature::kDISABLE_EXTERNAL_TACTIC_SOURCES_FOR_CORE_0805: return "kDISABLE_EXTERNAL_TACTIC_SOURCES_FOR_CORE_0805";
+        
                 case PreviewFeature::kPROFILE_SHARING_0806: return "kPROFILE_SHARING_0806";
             }
             return "Invalid Preview Feature";
@@ -670,8 +669,6 @@ namespace tensorrt_log
                 }
             };
 
-            addFlag(PreviewFeature::kFASTER_DYNAMIC_SHAPES_0805);
-            addFlag(PreviewFeature::kDISABLE_EXTERNAL_TACTIC_SOURCES_FOR_CORE_0805);
             addFlag(PreviewFeature::kPROFILE_SHARING_0806);
 
             return os;
@@ -1202,14 +1199,6 @@ namespace tensorrt_log
             if (featureName == "profileSharing0806")
             {
                 feat = PreviewFeature::kPROFILE_SHARING_0806;
-            }
-            else if (featureName == "fasterDynamicShapes0805")
-            {
-                feat = PreviewFeature::kFASTER_DYNAMIC_SHAPES_0805;
-            }
-            else if (featureName == "disableExternalTacticSourcesForCore0805")
-            {
-                feat = PreviewFeature::kDISABLE_EXTERNAL_TACTIC_SOURCES_FOR_CORE_0805;
             }
             else
             {

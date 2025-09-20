@@ -20,24 +20,33 @@ bool SuperPoint::build() {
     if(deserialize_engine()){
         return true;
     }
+
+    std::cout << "[SP] deserialize_engine failed, will build from ONNX" << std::endl;
+    
     auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
     if (!builder) {
         return false;
     }
+    
+
     const auto explicit_batch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = TensorRTUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicit_batch));
     if (!network) {
         return false;
     }
+
     auto config = TensorRTUniquePtr<nvinfer1::IBuilderConfig>(builder->createBuilderConfig());
     if (!config) {
         return false;
     }
+
     auto parser = TensorRTUniquePtr<nvonnxparser::IParser>(
             nvonnxparser::createParser(*network, gLogger.getTRTLogger()));
+
     if (!parser) {
         return false;
     }
+    
     
     auto profile = builder->createOptimizationProfile();
     if (!profile) {
@@ -50,24 +59,28 @@ bool SuperPoint::build() {
     profile->setDimensions(super_point_config_.input_tensor_names[0].c_str(),
                            nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(1, 1, 1500, 1500));
     config->addOptimizationProfile(profile);
-    
+
     auto constructed = construct_network(builder, network, config, parser);
     if (!constructed) {
         return false;
     }
+    
     auto profile_stream = makeCudaStream();
     if (!profile_stream) {
         return false;
     }
+    
     config->setProfileStream(*profile_stream);
     TensorRTUniquePtr<nvinfer1::IHostMemory> plan{builder->buildSerializedNetwork(*network, *config)};
     if (!plan) {
         return false;
     }
+
     TensorRTUniquePtr<nvinfer1::IRuntime> runtime{nvinfer1::createInferRuntime(gLogger.getTRTLogger())};
     if (!runtime) {
         return false;
     }
+    
     engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(plan->data(), plan->size()));
     if (!engine_) {
         return false;
@@ -117,10 +130,10 @@ bool SuperPoint::infer(const cv::Mat &image_, Eigen::Matrix<float, 259, Eigen::D
 
     assert(engine_->getNbBindings() == 3);
 
-    const int input_index = engine_->getBindingIndex(super_point_config_.input_tensor_names[0].c_str());
+    const char* input_name = super_point_config_.input_tensor_names[0].c_str();
 
-    context_->setBindingDimensions(input_index, nvinfer1::Dims4(1, 1, image.rows, image.cols));
-
+    context_->setInputShape(input_name, nvinfer1::Dims4(1, 1, image.rows, image.cols));
+    
     BufferManager buffers(engine_, 0, context_.get());
     
     ASSERT(super_point_config_.input_tensor_names.size() == 1);
@@ -130,7 +143,7 @@ bool SuperPoint::infer(const cv::Mat &image_, Eigen::Matrix<float, 259, Eigen::D
 
     buffers.copyInputToDevice();
 
-    bool status = context_->executeV2(buffers.getDeviceBindings().data());
+    bool status = context_->executeV2(buffers.getDeviceBindings().data());  
     if (!status) {
         return false;
     }

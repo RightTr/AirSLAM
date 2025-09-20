@@ -2,14 +2,41 @@
 #include <math.h>
 
 #include "dataset.h"
-#include "ros_publisher.h"
+#include "ros2_publisher.h"
 #include "utils.h"
 #include "imu.h"
+
+#include <regex>
+
+
+double extractTimestamp(const std::string& filename) {
+  size_t dot_pos = filename.rfind('.');
+  if (dot_pos == std::string::npos) {
+      throw std::runtime_error("Invalid filename: no extension found -> " + filename);
+  }
+  std::string ts_str = filename.substr(0, dot_pos);
+  try {
+      return std::stod(ts_str);
+  } catch (...) {
+      throw std::runtime_error("Invalid timestamp format in filename: " + filename);
+  }
+}
+
+void sortByTimestamp(std::vector<std::string>& files) {
+  std::sort(files.begin(), files.end(),
+      [](const std::string& a, const std::string& b) {
+          return extractTimestamp(a) < extractTimestamp(b);
+      });
+}
 
 Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_imu){
   if(!PathExists(dataroot)){
     std::cout << "dataroot : " << dataroot << " doesn't exist" << std::endl;
     exit(0);
+  }
+  else
+  {
+    std::cout << "dataroot : " << dataroot << std::endl;
   }
   std::string imu_file = ConcatenateFolderAndFileName(dataroot, "imu0/data.csv");
   if(use_imu && !FileExists(imu_file)){
@@ -17,11 +44,20 @@ Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_
     exit(0);
   }
 
-  std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "cam0/data");
-  std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "cam1/data");
-  std::vector<std::string> image_names;
-  GetFileNames(left_image_dir, image_names);
-  if(image_names.size() < 1) return;
+  // std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "pose_interp_left_fs");
+  // std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "pose_interp_right_fs");
+
+  std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal/left_motion");
+  std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal/right_motion");
+
+  // std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal");
+  // std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal");
+
+  std::vector<std::string> image_names_left;
+  std::vector<std::string> image_names_right;
+  GetFileNames(left_image_dir, image_names_left);
+  GetFileNames(right_image_dir, image_names_right);
+  if(image_names_left.size() < 1 || image_names_right.size() < 1) return;
 
   ImuDataList all_imu_data;
   if(use_imu){
@@ -29,7 +65,13 @@ Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_
   }
   size_t num_imu_data = all_imu_data.size();
 
-  std::sort(image_names.begin(), image_names.end()); 
+  sortByTimestamp(image_names_left);
+  sortByTimestamp(image_names_right);
+
+  std::cout << "images_left size: " << image_names_left.size() << std::endl;
+  std::cout << "images_right size: " << image_names_right.size() << std::endl;
+
+  std::vector<std::string> image_names = image_names_left;
   for(size_t i = 0; i < image_names.size(); ++i){
     // double image_time = atof(image_names[i].substr(0, 10).c_str()) + atof(image_names[i].substr(10, image_names[i].find_last_of('.')-10).c_str()) / 1e9;
     double image_time = ImageNameToTime(image_names[i]);
@@ -39,8 +81,8 @@ Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_
       if(image_time > all_imu_data[num_imu_data-1].timestamp) break;
     }
 
-    _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_names[i]));
-    _right_images.emplace_back(ConcatenateFolderAndFileName(right_image_dir, image_names[i]));
+    _left_images.emplace_back(ConcatenateFolderAndFileName(left_image_dir, image_names_left[i]));
+    _right_images.emplace_back(ConcatenateFolderAndFileName(right_image_dir, image_names_right[i]));
     _timestamps.emplace_back(image_time);  
   }
 
@@ -60,6 +102,7 @@ Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_
       _imu_data.emplace_back(mini_batch_imu_data);
     }
   }
+  std::cout << "Dataset loaded successfully!" << std::endl;
 }
 
 void Dataset::ReadImuData(const std::string& imu_file_path, ImuDataList& all_imu_data){
@@ -86,6 +129,8 @@ bool Dataset::GetData(size_t idx, cv::Mat& left_image, cv::Mat& right_image, Imu
   batch_imu_data.clear();
   if(idx >= _left_images.size()) return false;
   if(!FileExists(_left_images[idx]) || !FileExists(_right_images[idx])) return false;
+  std::cout << _left_images[idx] << std::endl;
+  std::cout << _right_images[idx] << std::endl;
   left_image = cv::imread(_left_images[idx], 0);
   right_image = cv::imread(_right_images[idx], 0);
   timestamp = _timestamps[idx];

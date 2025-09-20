@@ -99,8 +99,8 @@ namespace tensorrt_buffer
     }
 
 // Return m rounded up to nearest multiple of n
-    template <typename T>
-    inline T roundUp(T m, T n)
+    template <typename T1, typename T2>
+    inline auto roundUp(T1 m, T2 n) -> decltype(m + n)
     {
         return ((m + n - 1) / n) * n;
     }

@@ -24,6 +24,9 @@ FeatureDetector::FeatureDetector(const PLNetConfig& plnet_config) : _plnet_confi
       std::cout << "Error in SuperPoint building" << std::endl;
       exit(0);
     }
+    else{
+      std::cout << "SuperPoint building success" << std::endl;
+    }
   }
 
   _plnet = std::shared_ptr<PLNet>(new PLNet(_plnet_config));
@@ -31,6 +34,9 @@ FeatureDetector::FeatureDetector(const PLNetConfig& plnet_config) : _plnet_confi
     std::cout << "Error in FeatureDetector building" << std::endl;
     // exit(0);
   }
+  else{
+      std::cout << "FeatureDetector building success" << std::endl;
+    }
 }
 
 bool FeatureDetector::Detect(cv::Mat& image, Eigen::Matrix<float, 259, Eigen::Dynamic> &features){

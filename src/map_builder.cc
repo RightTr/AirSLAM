@@ -21,13 +21,13 @@
 #include "timer.h"
 #include "debug.h"
 
-MapBuilder::MapBuilder(VisualOdometryConfigs& configs, ros::NodeHandle nh): _shutdown(false), _feature_thread_stop(false), 
-    _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs){
+MapBuilder::MapBuilder(VisualOdometryConfigs& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
+    _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _preinteration_keyframe.SetNoiseAndWalk(_camera->GyrNoise(), _camera->AccNoise(), _camera->GyrWalk(), _camera->AccWalk());
   _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
   _feature_detector = std::shared_ptr<FeatureDetector>(new FeatureDetector(configs.plnet_config));
-  _ros_publisher = std::shared_ptr<RosPublisher>(new RosPublisher(configs.ros_publisher_config, nh));
+  _ros_publisher = std::make_shared<Ros2Publisher>(configs.ros_publisher_config, _node);
   _map = std::shared_ptr<Map>(new Map(_configs.backend_optimization_config, _camera, _ros_publisher));
 
   _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
@@ -515,18 +515,18 @@ void MapBuilder::PublishFrame(FramePtr frame, cv::Mat& image, FrameType frame_ty
     return;
   } 
 
-  FeatureMessgaePtr feature_message = std::shared_ptr<FeatureMessgae>(new FeatureMessgae);
+  FeatureMessagePtr feature_message = std::shared_ptr<FeatureMessage>(new FeatureMessage);
   FramePoseMessagePtr frame_pose_message = std::shared_ptr<FramePoseMessage>(new FramePoseMessage);
 
   feature_message->time = timestamp;
   feature_message->image = image;
   feature_message->key_image = key_image_pub;
   feature_message->frame_id = frame->GetFrameId();
-  feature_message->keyfrmae_id = key_image_id_pub;
+  feature_message->keyframe_id = key_image_id_pub;
   feature_message->keypoints = keypoints;
   feature_message->keyframe_keypoints = keyframe_keypoints_pub;
   feature_message->matches = matches;
-  feature_message->fm_type = FeatureMessgaeType::VOFeature;
+  feature_message->fm_type = FeatureMessageType::VOFeature;
   // feature_message->lines = lines;
   // feature_message->points_on_lines = points_on_lines;
   feature_message->inliers = inliers_feature_message;

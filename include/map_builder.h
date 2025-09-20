@@ -16,7 +16,7 @@
 #include "line_processor.h"
 #include "feature_detector.h"
 #include "map.h"
-#include "ros_publisher.h"
+#include "ros2_publisher.h"
 #include "g2o_optimization/types.h"
 
 struct InputData{
@@ -63,7 +63,7 @@ typedef std::shared_ptr<TrackingData> TrackingDataPtr;
 
 class MapBuilder{
 public:
-  MapBuilder(VisualOdometryConfigs& configs, ros::NodeHandle nh);
+  MapBuilder(VisualOdometryConfigs& configs, rclcpp::Node::SharedPtr node);
   bool UseIMU();
   void AddInput(InputDataPtr data);
   void ExtractFeatureThread();
@@ -118,13 +118,15 @@ private:
   // for imu
   Preinteration _preinteration_keyframe;
 
+  rclcpp::Node::SharedPtr _node;
+
 private:
   // class
   VisualOdometryConfigs _configs;
   CameraPtr _camera;
   PointMatcherPtr _point_matcher;
   FeatureDetectorPtr _feature_detector;
-  RosPublisherPtr _ros_publisher;
+  Ros2PublisherPtr _ros_publisher;
   MapPtr _map;
 };
 

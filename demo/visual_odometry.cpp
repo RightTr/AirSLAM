@@ -2,7 +2,7 @@
 #include <chrono>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <thread>
 
 #include "read_configs.h"
@@ -10,20 +10,33 @@
 #include "map_builder.h"
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "air_slam");
+
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("air_slam");
 
   std::string config_path, model_dir;
-  ros::param::get("~config_path", config_path);
-  ros::param::get("~model_dir", model_dir);
+  node->declare_parameter("config_path", "");
+  node->declare_parameter("model_dir", "");
+  node->declare_parameter("dataroot", "");
+  node->declare_parameter("camera_config_path", "");
+  node->declare_parameter("saving_dir", "");
+
+  node->get_parameter("config_path", config_path);
+  node->get_parameter("model_dir", model_dir);
+
   VisualOdometryConfigs configs(config_path, model_dir);
   std::cout << "config done" << std::endl;
 
-  ros::param::get("~dataroot", configs.dataroot);
-  ros::param::get("~camera_config_path", configs.camera_config_path);
-  ros::param::get("~saving_dir", configs.saving_dir);
+  node->get_parameter("dataroot", configs.dataroot);
+  RCLCPP_INFO(node->get_logger(), "dataroot: %s", configs.dataroot.c_str());
 
-  ros::NodeHandle nh;
-  MapBuilder map_builder(configs, nh);
+  node->get_parameter("camera_config_path", configs.camera_config_path);
+  RCLCPP_INFO(node->get_logger(), "camera_config_path: %s", configs.camera_config_path.c_str());
+
+  node->get_parameter("saving_dir", configs.saving_dir);
+  RCLCPP_INFO(node->get_logger(), "saving_dir: %s", configs.saving_dir.c_str());
+
+  MapBuilder map_builder(configs, node);
   std::cout << "map_builder done" << std::endl;
 
   Dataset dataset(configs.dataroot, map_builder.UseIMU());
@@ -32,7 +45,7 @@ int main(int argc, char **argv) {
 
   double sum_time = 0;
   int image_num = 0;
-  for(size_t i = 0; i < dataset_length && ros::ok(); ++i){
+  for(size_t i = 0; i < dataset_length && rclcpp::ok(); ++i){
     std::cout << "i ====== " << i << std::endl;
     cv::Mat image_left, image_right;
     double timestamp;
@@ -67,7 +80,7 @@ int main(int argc, char **argv) {
   std::string trajectory_path = ConcatenateFolderAndFileName(configs.saving_dir, "trajectory_v0.txt");
   map_builder.SaveTrajectory(trajectory_path);
   map_builder.SaveMap(configs.saving_dir);
-  ros::shutdown();
-
+  rclcpp::shutdown();
+  
   return 0;
 }

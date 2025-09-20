@@ -16,6 +16,10 @@ Camera::Camera(const std::string& camera_file){
     std::cout << "Config file: " << camera_file << " doesn't exist" << std::endl;
     exit(0);
   }
+  else{
+    std::cout << "Config file: " << camera_file << std::endl;
+    std::cout << "Config done " << std::endl;
+  }
 
   YAML::Node file_node = YAML::LoadFile(camera_file);
   _image_height = file_node["image_height"].as<int>();
@@ -52,6 +56,18 @@ Camera::Camera(const std::string& camera_file){
   }else{
     Eigen::Matrix3d R10_eigen = Tc1c0.block<3, 3>(0, 0);
     Eigen::Vector3d t10_eigen = Tc1c0.block<3, 1>(0, 3);
+
+    // Eigen::Matrix3d R10_eigen; // Nus thermal camera extrinsics
+    // R10_eigen << 
+    //   0.9998928479139975, 0.006664201062753905, 0.013033844967273217,
+    //   -0.0065988424903717065, 0.999965470127153, -0.005051121773369857,
+    //   -0.01306705660135398, 0.004964572245152228, 0.9999022977542356;
+    // Eigen::Vector3d t10_eigen;
+    // t10_eigen <<
+    //   -0.1216520307054718,
+    //   0.00037876701143810795,
+    //   -0.0015966275775746094;
+
     cv::eigen2cv(R10_eigen, R10);
     cv::eigen2cv(t10_eigen, t10);
 
@@ -84,6 +100,7 @@ Camera::Camera(const std::string& camera_file){
     _fx_inv = 1.0 / _fx;
     _fy_inv = 1.0 / _fy;
   }
+  std::cout << "bf: " << _bf << std::endl;
 
   // IMU
   _use_imu = file_node["use_imu"].as<int>();

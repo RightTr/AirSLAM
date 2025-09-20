@@ -16,7 +16,7 @@
 #include "point_matcher.h"
 #include "line_processor.h"
 #include "map.h"
-#include "ros_publisher.h"
+#include "ros2_publisher.h"
 #include "g2o_optimization/types.h"
 #include "bow/database.h"
 
@@ -30,7 +30,7 @@ struct RelocalizationGroupCandidate{
 class MapUser{
 public:
   MapUser();
-  MapUser(RelocalizationConfigs& configs, ros::NodeHandle nh);
+  MapUser(RelocalizationConfigs& configs, rclcpp::Node::SharedPtr node);
 
   void LoadMap(const std::string& map_root);
   void LoadVocabulary(const std::string voc_path);
@@ -59,11 +59,13 @@ private:
   DatabasePtr _junction_database;
 
   // for visualization
-  RosPublisherPtr _ros_publisher;
+  Ros2PublisherPtr _ros_publisher;
   bool _stop;
   std::thread _visualization_thread;
 
   RelocMessagePtr _reloc_message;
+
+  rclcpp::Node::SharedPtr _node;
 };
 
 #endif  // MAP_USER_H_

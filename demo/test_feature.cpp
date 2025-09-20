@@ -2,7 +2,7 @@
 #include <chrono>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <thread>
 
 #include "read_configs.h"
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
   GetFileNames(dataroot, image_names);
   size_t dataset_length = image_names.size();
   // dataset_length = 14;
-  for(size_t i = 0; i < dataset_length && ros::ok(); ++i){
+  for(size_t i = 0; i < dataset_length && rclcpp::ok(); ++i){
     std::cout << "i ====== " << i << std::endl;
 
     std::string image_path = ConcatenateFolderAndFileName(dataroot, image_names[i]);
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 
     auto before_infer = std::chrono::high_resolution_clock::now();
 
-    cv::Mat resized_image;
+    cv::Mat resized_image;512
     cv::resize(image_left_rect, resized_image, cv::Size(512, 512));
 
     // feature_detector->Detect(image_left_rect, features);

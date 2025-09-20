@@ -45,18 +45,16 @@ class PLNet {
 
   int feature_width;
   int feature_height;
-
-
-  int image_input_index_;
-  int juncs_pred_index_;
-  int lines_pred_index_;
-  int idx_lines_for_junctions_index_;
-  int inverse_index_;
-  int is_keep_index_index_;
-  int loi_features_index_;
-  int loi_features_thin_index_;
-  int loi_features_aux_index_;
-
+  
+  const char* image_input_name;
+  const char* juncs_pred_name;
+  const char* lines_pred_name;
+  const char* idx_lines_for_junctions_name;
+  const char* inverse_name;
+  const char* is_keep_index_name;
+  const char* loi_features_name;
+  const char* loi_features_thin_name;
+  const char* loi_features_aux_name;
 
   std::vector<int> is_keep_index_;
   std::vector<int> inverse_;

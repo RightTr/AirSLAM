@@ -16,6 +16,9 @@ PointMatcher::PointMatcher(const PointMatcherConfig& config) : _config(config){
     if (!_lightglue->build()){
       std::cout << "Erron lightglue building" << std::endl;
     }
+    else{
+      std::cout << "lightglue building success" << std::endl;
+    }
   }else if(_config.matcher == 1){
     _config.dla_core = -1;
     _config.input_tensor_names.push_back("keypoints_0");
@@ -29,6 +32,9 @@ PointMatcher::PointMatcher(const PointMatcherConfig& config) : _config(config){
     _superglue = std::shared_ptr<SuperGlue>(new SuperGlue(_config));
     if (!_superglue->build()){
       std::cout << "Erron superglue building" << std::endl;
+    }
+    else{
+      std::cout << "superglue building success" << std::endl;
     }
   }else{
     std::cout << "Plese select the point matcher! (0 for lightglue and 1 for superglue)" << std::endl;

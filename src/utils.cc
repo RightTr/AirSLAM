@@ -52,13 +52,23 @@ double StringTimeToDouble(std::string time_str){
   return (time_double1 + time_double2);
 }
 
-double ImageNameToTime(const std::string& image_name){
-  std::string time_str;
-  size_t pos = image_name.find_last_of('.');
-  if (pos != std::string::npos) {
-    time_str = image_name.substr(0, pos);
-  } 
-  return StringTimeToDouble(time_str);
+double ImageNameToTime(const std::string& image_name) {
+  std::string name = image_name;
+  size_t last_dot = name.find_last_of('.');
+  if (last_dot != std::string::npos) {
+      name = name.substr(0, last_dot);
+  }
+
+  std::replace(name.begin(), name.end(), '_', '.');
+
+  size_t dot_pos = name.find('.');
+  if (dot_pos == std::string::npos) {
+      throw std::runtime_error("No separator (underscore or dot) in image name: " + image_name);
+  }
+
+  double sec = atof(name.substr(0, dot_pos).c_str());
+  double nsec = atof(name.substr(dot_pos + 1).c_str());
+  return sec + nsec / 1e9;
 }
 
 double CalculateStdDev(const std::vector<double>& data) {

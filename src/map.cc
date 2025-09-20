@@ -22,7 +22,7 @@
 Map::Map(): _imu_init(false), imu_init_stage(0){
 }
 
-Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher):
+Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, Ros2PublisherPtr ros_publisher):
     _backend_optimization_config(backend_optimization_config), _camera(camera),
     _ros_publisher(ros_publisher), _imu_init(false), imu_init_stage(0){
 }
@@ -1277,7 +1277,7 @@ void Map::SaveMap(const std::string& map_root){
   WriteTxt(mappoints_file, mappoints_lines, ",");
 }
 
-void Map::SetRosPublisher(RosPublisherPtr ros_publisher){
+void Map::SetRosPublisher(Ros2PublisherPtr ros_publisher){
   _ros_publisher = ros_publisher;
 }
 

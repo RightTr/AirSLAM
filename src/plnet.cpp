@@ -30,7 +30,7 @@ bool PLNet::build() {
       }
     }
 
-    image_input_index_ = engine0_->getBindingIndex("input");
+    image_input_name = "input";
     if (!context1_) {
       context1_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(engine1_->createExecutionContext());
       if (!context1_) {
@@ -38,14 +38,15 @@ bool PLNet::build() {
       }
     }
 
-    juncs_pred_index_ = engine1_->getBindingIndex("juncs_pred");
-    lines_pred_index_ = engine1_->getBindingIndex("lines_pred");
-    idx_lines_for_junctions_index_ = engine1_->getBindingIndex("idx_lines_for_junctions");
-    inverse_index_ = engine1_->getBindingIndex("inverse");
-    is_keep_index_index_ = engine1_->getBindingIndex("iskeep_index");
-    loi_features_index_ = engine1_->getBindingIndex("loi_features");
-    loi_features_thin_index_ = engine1_->getBindingIndex("loi_features_thin");
-    loi_features_aux_index_ = engine1_->getBindingIndex("loi_features_aux");
+    juncs_pred_name = "juncs_pred";
+    lines_pred_name = "lines_pred";
+    idx_lines_for_junctions_name = "idx_lines_for_junctions";
+    inverse_name = "inverse";
+    is_keep_index_name = "iskeep_index";
+    loi_features_name = "loi_features";
+    loi_features_thin_name = "loi_features_thin";
+    loi_features_aux_name = "loi_features_aux";
+
     return true;
   }
   auto builder_stage1 = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
@@ -104,7 +105,7 @@ bool PLNet::build() {
     }
   }
 
-  image_input_index_ = engine0_->getBindingIndex("input");
+  image_input_name = "input";
 
   auto builder_stage2 = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
   if (!builder_stage2) {
@@ -183,14 +184,14 @@ bool PLNet::build() {
     }
   }
 
-  juncs_pred_index_ = engine1_->getBindingIndex("juncs_pred");
-  lines_pred_index_ = engine1_->getBindingIndex("lines_pred");
-  idx_lines_for_junctions_index_ = engine1_->getBindingIndex("idx_lines_for_junctions");
-  inverse_index_ = engine1_->getBindingIndex("inverse");
-  is_keep_index_index_ = engine1_->getBindingIndex("iskeep_index");
-  loi_features_index_ = engine1_->getBindingIndex("loi_features");
-  loi_features_thin_index_ = engine1_->getBindingIndex("loi_features_thin");
-  loi_features_aux_index_ = engine1_->getBindingIndex("loi_features_aux");
+  juncs_pred_name = "juncs_pred";
+  lines_pred_name = "lines_pred";
+  idx_lines_for_junctions_name = "idx_lines_for_junctions";
+  inverse_name = "inverse";
+  is_keep_index_name = "iskeep_index";
+  loi_features_name = "loi_features";
+  loi_features_thin_name = "loi_features_thin";
+  loi_features_aux_name = "loi_features_aux";
 
   return true;
 }
@@ -221,7 +222,7 @@ bool PLNet::construct_network_stage2(TensorRTUniquePtr<nvinfer1::IBuilder> &buil
 bool PLNet::infer(const cv::Mat &image, Eigen::Matrix<float, 259, Eigen::Dynamic> &features, 
     std::vector<Eigen::Vector4d>& lines, Eigen::Matrix<float, 259, Eigen::Dynamic>& junctions, bool junction_detection) {
 
-  context0_->setBindingDimensions(image_input_index_, nvinfer1::Dims4(1, 1, resized_height, resized_width));
+  context0_->setInputShape(image_input_name, nvinfer1::Dims4(1, 1, resized_height, resized_width));
 
   BufferManager buffers0(engine0_, 0, context0_.get());
 
@@ -465,14 +466,14 @@ bool PLNet::process_output(const BufferManager &buffers, Eigen::Matrix<float, 25
     return false;
   }
 
-  context1_->setBindingDimensions(juncs_pred_index_, nvinfer1::Dims2(300, 2));
-  context1_->setBindingDimensions(lines_pred_index_, nvinfer1::Dims2(128 * 128 * 3, 4));
-  context1_->setBindingDimensions(idx_lines_for_junctions_index_, nvinfer1::Dims2((int)idx_lines_for_junctions_unique_.size(), 2));
-  context1_->setBindingDimensions(inverse_index_, nvinfer1::Dims2((int)inverse_.size(), 1));
-  context1_->setBindingDimensions(is_keep_index_index_, nvinfer1::Dims2((int)is_keep_index_.size(), 1));
-  context1_->setBindingDimensions(loi_features_index_, nvinfer1::Dims4(1, 128, 128, 128));
-  context1_->setBindingDimensions(loi_features_thin_index_, nvinfer1::Dims4(1, 4, 128, 128));
-  context1_->setBindingDimensions(loi_features_aux_index_, nvinfer1::Dims4(1, 4, 128, 128));
+  context1_->setInputShape(juncs_pred_name, nvinfer1::Dims2(300, 2));
+  context1_->setInputShape(lines_pred_name, nvinfer1::Dims2(128 * 128 * 3, 4));
+  context1_->setInputShape(idx_lines_for_junctions_name, nvinfer1::Dims2((int)idx_lines_for_junctions_unique_.size(), 2));
+  context1_->setInputShape(inverse_name, nvinfer1::Dims2((int)inverse_.size(), 1));
+  context1_->setInputShape(is_keep_index_name, nvinfer1::Dims2((int)is_keep_index_.size(), 1));
+  context1_->setInputShape(loi_features_name, nvinfer1::Dims4(1, 128, 128, 128));
+  context1_->setInputShape(loi_features_thin_name, nvinfer1::Dims4(1, 4, 128, 128));
+  context1_->setInputShape(loi_features_aux_name, nvinfer1::Dims4(1, 4, 128, 128));
 
   BufferManager buffers1(engine1_, 0, context1_.get());
 
