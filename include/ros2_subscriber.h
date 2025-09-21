@@ -26,7 +26,7 @@ class Ros2Subscriber
 
         double last_left_time_{0.0}, last_right_time_{0.0};
         std::mutex mtx_;
-
+        
         void TryPushStereo();
 };
 typedef std::shared_ptr<Ros2Subscriber> Ros2SubscriberPtr;

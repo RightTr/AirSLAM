@@ -47,11 +47,11 @@ Dataset::Dataset(const std::string& dataroot, const bool use_imu): _use_imu(use_
   // std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "pose_interp_left_fs");
   // std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "pose_interp_right_fs");
 
-  std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal/left_motion");
-  std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal/right_motion");
+  // std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal/left_motion");
+  // std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal/right_motion");
 
-  // std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal");
-  // std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal");
+  std::string left_image_dir = ConcatenateFolderAndFileName(dataroot, "left_thermal/image");
+  std::string right_image_dir = ConcatenateFolderAndFileName(dataroot, "right_thermal/image");
 
   std::vector<std::string> image_names_left;
   std::vector<std::string> image_names_right;

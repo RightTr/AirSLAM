@@ -14,7 +14,7 @@ point_matcher:
   engine_file: "superpoint_lightglue.engine"
 
 keyframe:
-  min_init_stereo_feature: 50
+  min_init_stereo_feature: 10
   lost_num_match: 10
   min_num_match: 30
   max_num_match: 80
@@ -52,7 +52,8 @@ ros_publisher:
   reloc_topic: "/AirSLAM/reloc"
 
 ros_subscriber:
-  left_topic: ""
-  right_topic: ""
+  left_topic: "/thermal/left/image_raw"
+  right_topic: "/thermal/right/image_raw"
   buffer_size: 10
+  time_thresh: 0.05
  

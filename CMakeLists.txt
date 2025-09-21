@@ -96,6 +96,7 @@ target_link_libraries(
   ${CUDA_LIBRARIES}
   ${Boost_LIBRARIES}
   ${G2O_LIBRARIES}
+  g2o_core
   ${GFLAGS_LIBRARIES} 
   ${GLOG_LIBRARIES}
   yaml-cpp
@@ -119,9 +120,9 @@ ament_target_dependencies(
   tf2_ros
 )
 
-add_executable(visual_odometry demo/visual_odometry.cpp)
-target_link_libraries(visual_odometry ${PROJECT_NAME}_lib)
-ament_target_dependencies(visual_odometry rclcpp std_msgs geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport tf2 tf2_ros)
+# add_executable(visual_odometry demo/visual_odometry.cpp)
+# target_link_libraries(visual_odometry ${PROJECT_NAME}_lib)
+# ament_target_dependencies(visual_odometry rclcpp std_msgs geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport tf2 tf2_ros)
 
 add_executable(map_refinement demo/map_refinement.cpp)
 target_link_libraries(map_refinement ${PROJECT_NAME}_lib)
@@ -148,7 +149,7 @@ install(DIRECTORY
 )
 
 install(TARGETS
-  visual_odometry
+  visual_odometry_online
   DESTINATION lib/${PROJECT_NAME}
 )
 

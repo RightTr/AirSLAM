@@ -18,7 +18,7 @@ def generate_launch_description():
 
   dataroot_arg = DeclareLaunchArgument(
     'dataroot',
-    default_value='/home/pi/Dataset/thermal_ros2_test',
+    default_value='/home/rho/Documents/data/run_20250912_181939',
     description='Dataset root path'
   )
 
