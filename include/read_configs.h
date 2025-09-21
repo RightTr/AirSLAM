@@ -252,21 +252,11 @@ struct VisualOdometryConfigs{
     backend_optimization_config.Load(file_node["optimization"]["backend"]);
     ros_publisher_config.Load(file_node["ros_publisher"]);
   }
+
+  virtual ~VisualOdometryConfigs() = default; 
 };
 
-struct VisualOdometryOnlineConfigs{
-  std::string camera_config_path;
-  std::string model_dir;
-  std::string saving_dir;
-
-  PLNetConfig plnet_config;
-  SuperPointConfig superpoint_config;
-  PointMatcherConfig point_matcher_config;
-  LineDetectorConfig line_detector_config;
-  KeyframeConfig keyframe_config;
-  OptimizationConfig tracking_optimization_config;
-  OptimizationConfig backend_optimization_config;
-  RosPublisherConfig ros_publisher_config;
+struct VisualOdometryOnlineConfigs : public VisualOdometryConfigs{
   RosSubscriberConfig ros_subscriber_config;
 
   VisualOdometryOnlineConfigs() {}

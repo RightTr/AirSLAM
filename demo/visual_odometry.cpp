@@ -24,22 +24,22 @@ int main(int argc, char **argv) {
   node->get_parameter("config_path", config_path);
   node->get_parameter("model_dir", model_dir);
 
-  VisualOdometryConfigs configs(config_path, model_dir);
+  auto configs = std::make_shared<VisualOdometryConfigs>(config_path, model_dir);
   std::cout << "config done" << std::endl;
 
-  node->get_parameter("dataroot", configs.dataroot);
-  RCLCPP_INFO(node->get_logger(), "dataroot: %s", configs.dataroot.c_str());
+  node->get_parameter("dataroot", configs->dataroot);
+  RCLCPP_INFO(node->get_logger(), "dataroot: %s", configs->dataroot.c_str());
 
-  node->get_parameter("camera_config_path", configs.camera_config_path);
-  RCLCPP_INFO(node->get_logger(), "camera_config_path: %s", configs.camera_config_path.c_str());
+  node->get_parameter("camera_config_path", configs->camera_config_path);
+  RCLCPP_INFO(node->get_logger(), "camera_config_path: %s", configs->camera_config_path.c_str());
 
-  node->get_parameter("saving_dir", configs.saving_dir);
-  RCLCPP_INFO(node->get_logger(), "saving_dir: %s", configs.saving_dir.c_str());
+  node->get_parameter("saving_dir", configs->saving_dir);
+  RCLCPP_INFO(node->get_logger(), "saving_dir: %s", configs->saving_dir.c_str());
 
   MapBuilder map_builder(configs, node);
   std::cout << "map_builder done" << std::endl;
 
-  Dataset dataset(configs.dataroot, map_builder.UseIMU());
+  Dataset dataset(configs->dataroot, map_builder.UseIMU());
   size_t dataset_length = dataset.GetDatasetLength();
   std::cout << "dataset done" << std::endl;
 
@@ -77,9 +77,9 @@ int main(int argc, char **argv) {
   }
   std::cout << "Map building has been stopped" << std::endl; 
 
-  std::string trajectory_path = ConcatenateFolderAndFileName(configs.saving_dir, "trajectory_v0.txt");
+  std::string trajectory_path = ConcatenateFolderAndFileName(configs->saving_dir, "trajectory_v0.txt");
   map_builder.SaveTrajectory(trajectory_path);
-  map_builder.SaveMap(configs.saving_dir);
+  map_builder.SaveMap(configs->saving_dir);
   rclcpp::shutdown();
   
   return 0;

@@ -20,6 +20,7 @@
 #include "g2o_optimization/types.h"
 #include "ros2_subscriber.h"
 #include "read_configs.h"
+#include <variant>
 
 struct InputData{
   size_t index;
@@ -65,8 +66,7 @@ typedef std::shared_ptr<TrackingData> TrackingDataPtr;
 
 class MapBuilder{
 public:
-  // MapBuilder(VisualOdometryConfigs& configs, rclcpp::Node::SharedPtr node);
-  MapBuilder(VisualOdometryOnlineConfigs& configs, rclcpp::Node::SharedPtr node);
+  MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, rclcpp::Node::SharedPtr node);
   bool UseIMU();
   void AddInput(InputDataPtr data);
   bool AddInputOnline(int index);
@@ -103,7 +103,7 @@ private:
   std::mutex _stop_mutex;
   bool _shutdown;
   bool _feature_thread_stop;
-  bool _tracking_trhead_stop;
+  bool _tracking_thread_stop;
 
   // tmp 
   bool _init;
@@ -126,8 +126,7 @@ private:
 
 private:
   // class
-  // VisualOdometryConfigs _configs;
-  VisualOdometryOnlineConfigs _configs;
+  std::shared_ptr<VisualOdometryConfigs> _configs;
   CameraPtr _camera;
   PointMatcherPtr _point_matcher;
   FeatureDetectorPtr _feature_detector;

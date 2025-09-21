@@ -21,32 +21,20 @@
 #include "timer.h"
 #include "debug.h"
 
-// MapBuilder::MapBuilder(VisualOdometryConfigs& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
-//   _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
-//   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
-//   _preinteration_keyframe.SetNoiseAndWalk(_camera->GyrNoise(), _camera->AccNoise(), _camera->GyrWalk(), _camera->AccWalk());
-//   _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
-//   _feature_detector = std::shared_ptr<FeatureDetector>(new FeatureDetector(configs.plnet_config));
-//   _ros_publisher = std::make_shared<Ros2Publisher>(_configs.ros_publisher_config, _node);
-//   _map = std::shared_ptr<Map>(new Map(configs.backend_optimization_config, _camera, _ros_publisher));
-//   _ros_subscriber = nullptr;
+MapBuilder::MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
+  _tracking_thread_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
+  _camera = std::make_shared<Camera>(_configs->camera_config_path);
+  _point_matcher = std::make_shared<PointMatcher>(_configs->point_matcher_config);
+  _feature_detector = std::make_shared<FeatureDetector>(_configs->plnet_config);
+  _ros_publisher = std::make_shared<Ros2Publisher>(_configs->ros_publisher_config, node);
+  _map = std::make_shared<Map>(_configs->backend_optimization_config, _camera, _ros_publisher);
 
-//   _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
-//   _tracking_thread = std::thread(boost::bind(&MapBuilder::TrackingThread, this));
-// }
+  if (auto online_cfg = std::dynamic_pointer_cast<VisualOdometryOnlineConfigs>(_configs)) {
+      _ros_subscriber = std::make_shared<Ros2Subscriber>(online_cfg->ros_subscriber_config, node);
+  }
 
-MapBuilder::MapBuilder(VisualOdometryOnlineConfigs& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
-  _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
-  _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
-  _preinteration_keyframe.SetNoiseAndWalk(_camera->GyrNoise(), _camera->AccNoise(), _camera->GyrWalk(), _camera->AccWalk());
-  _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
-  _feature_detector = std::shared_ptr<FeatureDetector>(new FeatureDetector(configs.plnet_config));
-  _ros_publisher = std::make_shared<Ros2Publisher>(_configs.ros_publisher_config, _node);
-  _map = std::shared_ptr<Map>(new Map(configs.backend_optimization_config, _camera, _ros_publisher));
-  _ros_subscriber = std::make_shared<Ros2Subscriber>(_configs.ros_subscriber_config, _node);
-
-  _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
-  _tracking_thread = std::thread(boost::bind(&MapBuilder::TrackingThread, this));
+  _feature_thread = std::thread(&MapBuilder::ExtractFeatureThread, this);
+  _tracking_thread = std::thread(&MapBuilder::TrackingThread, this);
 }
 
 bool MapBuilder::UseIMU(){
@@ -161,10 +149,10 @@ void MapBuilder::ExtractFeatureThread(){
         _insert_next_keyframe = (enough_match == 1) && (frame_type == FrameType::NormalFrame);
       }
     }else{
-      if(good_stereo_point < _configs.keyframe_config.min_init_stereo_feature){
+      if(good_stereo_point < _configs->keyframe_config.min_init_stereo_feature){
         std::cout << "good_stereo_point = " << good_stereo_point << std::endl;
         std::cout << "Not enough stereo points to initialize!" << std::endl;
-        continue;
+        continue; 
       }else{
         std::cout << "Initialization is done!" << std::endl;
         _init = true;
@@ -250,7 +238,7 @@ void MapBuilder::TrackingThread(){
 
     frame->SetPreviousFrame(ref_keyframe);
 
-    if(track_inliers > _configs.keyframe_config.lost_num_match){ 
+    if(track_inliers > _configs->keyframe_config.lost_num_match){ 
       _last_tracked_frame = frame;
     }
 
@@ -265,7 +253,7 @@ void MapBuilder::TrackingThread(){
   }  
 
   _stop_mutex.lock();
-  _tracking_trhead_stop = true;
+  _tracking_thread_stop = true;
   _stop_mutex.unlock();
 }
 
@@ -291,7 +279,7 @@ int MapBuilder::TrackFrame(FramePtr ref_frame, FramePtr current_frame, std::vect
   int num_inliers = FramePoseOptimization(ref_frame, current_frame, matched_mappoints, inliers, _preinteration);
 
   // update track id
-  if(num_inliers > _configs.keyframe_config.lost_num_match){
+  if(num_inliers > _configs->keyframe_config.lost_num_match){
     for(std::vector<cv::DMatch>::iterator it = matches.begin(); it != matches.end();){
       int idx0 = (*it).queryIdx;
       int idx1 = (*it).trainIdx;
@@ -351,7 +339,7 @@ int MapBuilder::FramePoseOptimization(FramePtr frame0, FramePtr frame1, std::vec
     std::vector<int> cv_inliers;
     int num_cv_inliers = SolvePnPWithCV(frame1, mappoints, Twc, cv_inliers);
     Eigen::Vector3d check_dp = Twc.block<3, 1>(0, 3) - _last_tracked_frame->GetPose().block<3, 1>(0, 3);
-    if(check_dp.norm() > 1.0 || num_cv_inliers < _configs.keyframe_config.lost_num_match ){
+    if(check_dp.norm() > 1.0 || num_cv_inliers < _configs->keyframe_config.lost_num_match ){
       Twc = _last_tracked_frame->GetPose();
     }
   }
@@ -434,9 +422,9 @@ int MapBuilder::FramePoseOptimization(FramePtr frame0, FramePtr frame1, std::vec
 
   int num_inliers = FrameOptimization(poses, points, lines, velocities, biases, camera_list, 
     mono_point_constraints, stereo_point_constraints, mono_line_constraints, stereo_line_constraints,
-    imu_constraints, Rwg, _configs.tracking_optimization_config);
+    imu_constraints, Rwg, _configs->tracking_optimization_config);
 
-  if(num_inliers > _configs.keyframe_config.lost_num_match ){
+  if(num_inliers > _configs->keyframe_config.lost_num_match ){
     // set frame pose
     Eigen::Matrix4d frame_pose = Eigen::Matrix4d::Identity();
     frame_pose.block<3, 3>(0, 0) = poses[frame_id1].R;
@@ -470,19 +458,19 @@ int MapBuilder::FramePoseOptimization(FramePtr frame0, FramePtr frame1, std::vec
 // return value: 0 : select this frame as keyframe, 1 : select next frame as keyframe, 2 : not select keyframe
 int MapBuilder::AddKeyframeCheck(FramePtr ref_keyframe, FramePtr current_frame, const std::vector<cv::DMatch>& matches){
   int match_num = matches.size();
-  if(match_num < _configs.keyframe_config.min_num_match) return 0;
+  if(match_num < _configs->keyframe_config.min_num_match) return 0;
 
   const Eigen::Matrix<float, 259, Eigen::Dynamic>& ref_features = ref_keyframe->GetAllFeatures();
   const Eigen::Matrix<float, 259, Eigen::Dynamic>& current_features = current_frame->GetAllFeatures();
 
-  float feature_tracking_thr = _configs.keyframe_config.tracking_point_rate;
-  double ration_thr = _configs.keyframe_config.tracking_parallax_rate;
+  float feature_tracking_thr = _configs->keyframe_config.tracking_point_rate;
+  double ration_thr = _configs->keyframe_config.tracking_parallax_rate;
   if(UseIMU() && !_map->IMUInit()){
     feature_tracking_thr *= 1.1;
     ration_thr *= 0.7;
   }
 
-  if((float)match_num/ref_features.cols() < feature_tracking_thr || (float)match_num/current_features.cols() < feature_tracking_thr || match_num < _configs.keyframe_config.max_num_match){
+  if((float)match_num/ref_features.cols() < feature_tracking_thr || (float)match_num/current_features.cols() < feature_tracking_thr || match_num < _configs->keyframe_config.max_num_match){
     return 1;
   }
 
@@ -590,7 +578,7 @@ void MapBuilder::PublishFrame(FramePtr frame, cv::Mat& image, FrameType frame_ty
 }
 
 void MapBuilder::SaveTrajectory(){
-  std::string file_path = ConcatenateFolderAndFileName(_configs.saving_dir, "keyframe_trajectory.txt");
+  std::string file_path = ConcatenateFolderAndFileName(_configs->saving_dir, "keyframe_trajectory.txt");
   _map->SaveKeyframeTrajectory(file_path);
 }
 
@@ -623,6 +611,6 @@ void MapBuilder::Stop(){
 }
 
 bool MapBuilder::IsStopped(){
-  bool have_stopped = (_feature_thread_stop && _tracking_trhead_stop);
+  bool have_stopped = (_feature_thread_stop && _tracking_thread_stop);
   return have_stopped;
 }
