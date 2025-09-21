@@ -4,6 +4,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "imgbuffer.h"
+#include "read_configs.h"
+#include <cv_bridge/cv_bridge.h>
 
 class Ros2Subscriber
 {
@@ -19,13 +21,13 @@ class Ros2Subscriber
         rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr ros_imgr_sub_;
         sensor_msgs::msg::Image _ros_img_right;
 
-        Imgbuffer buffer;
+        ImgBuffer buffer;
         RosSubscriberConfig _config;
 
         double last_left_time_{0.0}, last_right_time_{0.0};
         std::mutex mtx_;
 
-        void Ros2Subscriber::TryPushStereo();
+        void TryPushStereo();
 };
 typedef std::shared_ptr<Ros2Subscriber> Ros2SubscriberPtr;
 

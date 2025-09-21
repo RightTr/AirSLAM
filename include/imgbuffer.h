@@ -71,6 +71,6 @@ class ImgBuffer
         std::condition_variable cond_full_;
         std::condition_variable cond_empty_;
 
-}
+};
 
 #endif

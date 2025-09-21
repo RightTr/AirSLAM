@@ -36,14 +36,14 @@ MapBuilder::MapBuilder(VisualOdometryConfigs& configs, rclcpp::Node::SharedPtr n
 }
 
 MapBuilder::MapBuilder(VisualOdometryOnlineConfigs& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
-  _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
+  _tracking_trhead_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _config_online(configs), _node(node){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _preinteration_keyframe.SetNoiseAndWalk(_camera->GyrNoise(), _camera->AccNoise(), _camera->GyrWalk(), _camera->AccWalk());
   _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
   _feature_detector = std::shared_ptr<FeatureDetector>(new FeatureDetector(configs.plnet_config));
   _ros_publisher = std::make_shared<Ros2Publisher>(configs.ros_publisher_config, _node);
-  _map = std::shared_ptr<Map>(new Map(_configs.backend_optimization_config, _camera, _ros_publisher));
-  _ros_subscriber = std::make_shared<Ros2Publisher>(configs.ros_subscriber_config, _node);
+  _map = std::shared_ptr<Map>(new Map(_config_online.backend_optimization_config, _camera, _ros_publisher));
+  _ros_subscriber = std::make_shared<Ros2Subscriber>(configs.ros_subscriber_config, _node);
 
   _feature_thread = std::thread(boost::bind(&MapBuilder::ExtractFeatureThread, this));
   _tracking_thread = std::thread(boost::bind(&MapBuilder::TrackingThread, this));

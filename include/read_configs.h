@@ -205,11 +205,13 @@ struct RosSubscriberConfig
     left_topic = ros_subscriber_node["left_topic"].as<std::string>();   
     right_topic = ros_subscriber_node["right_topic"].as<std::string>();   
     buffer_size = ros_subscriber_node["buffer_size"].as<int>(10);   
+    time_thresh = ros_subscriber_node["time_thresh"].as<int>(0.07);   
   }
   std::string left_topic;
   std::string right_topic;
   int buffer_size;
-}
+  float time_thresh;
+};
 
 struct VisualOdometryConfigs{
   std::string dataroot;

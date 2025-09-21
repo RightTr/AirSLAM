@@ -18,6 +18,8 @@
 #include "map.h"
 #include "ros2_publisher.h"
 #include "g2o_optimization/types.h"
+#include "ros2_subscriber.h"
+#include "read_configs.h"
 
 struct InputData{
   size_t index;
@@ -125,6 +127,7 @@ private:
 private:
   // class
   VisualOdometryConfigs _configs;
+  VisualOdometryOnlineConfigs _config_online;
   CameraPtr _camera;
   PointMatcherPtr _point_matcher;
   FeatureDetectorPtr _feature_detector;
