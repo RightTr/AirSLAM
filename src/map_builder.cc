@@ -60,11 +60,19 @@ bool MapBuilder::AddInputOnline(int index){
   StereoFrame frame;
   InputDataPtr data = std::make_shared<InputData>();
   if (!_ros_subscriber->PopStereoFrame(frame)) {
-    // std::cout << "Failed to pop frame" << std::endl;
     return false; 
   }
   else{
     std::cout << "Pop frame success" << std::endl;
+  }
+  std::vector<ImuData> imu_measurements;
+  if(_ros_subscriber->PopImuDataBetween(last_time, frame._timestamp, imu_measurements)) {
+    return false; 
+    last_time = frame._timestamp
+  }
+  else{
+    std::cout << "Pop imu data success" << std::endl;
+    last_time = frame._timestamp
   }
   cv::Mat image_left_rect, image_right_rect;
   _camera->UndistortImage(frame._left, frame._right, image_left_rect, image_right_rect);
@@ -72,6 +80,7 @@ bool MapBuilder::AddInputOnline(int index){
   data->image_right = image_right_rect;
   data->time = frame._timestamp;
   data->index = index;
+  data->batch_imu_data = imu_measurements
 
   while(_data_buffer.size() > 3 && !_shutdown){
     usleep(2000);

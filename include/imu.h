@@ -10,6 +10,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <sensor_msgs/msg/imu.hpp>
+
 #include <boost/serialization/serialization.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
@@ -34,7 +36,23 @@ struct ImuData {
 		return *this;
 	}
 };
+
 typedef std::vector<ImuData> ImuDataList;
+
+inline ImuData RosImu2ImuData(const sensor_msgs::msg::Imu& msg) {
+  ImuData data;
+  data.timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9;
+
+  data.gyr << msg.angular_velocity.x,
+              msg.angular_velocity.y,
+              msg.angular_velocity.z;
+
+  data.acc << msg.linear_acceleration.x,
+              msg.linear_acceleration.y,
+              msg.linear_acceleration.z;
+
+  return data;
+}
 
 void Hat(Eigen::Matrix3d& m, const Eigen::Vector3d& v);
 Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d &R);

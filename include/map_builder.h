@@ -133,6 +133,8 @@ private:
   Ros2PublisherPtr _ros_publisher;
   MapPtr _map;
   Ros2SubscriberPtr _ros_subscriber;
+
+  double last_time;
 };
 
 #endif  // MAP_BUILDER_H_

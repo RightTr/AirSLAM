@@ -204,13 +204,20 @@ struct RosSubscriberConfig
   void Load(const YAML::Node& ros_subscriber_node){
     left_topic = ros_subscriber_node["left_topic"].as<std::string>();   
     right_topic = ros_subscriber_node["right_topic"].as<std::string>();   
-    buffer_size = ros_subscriber_node["buffer_size"].as<int>(10);   
-    time_thresh = ros_subscriber_node["time_thresh"].as<int>(0.07);   
+    imu_topic = ros_subscriber_node["imu_topic"].as<std::string>();  
+    img_buffer_size = ros_subscriber_node["img_buffer_size"].as<int>(10);
+    imu_buffer_size = ros_subscriber_node["imu_buffer_size"].as<int>(200);
+    img_timediff_max = ros_subscriber_node["img_timediff_max"].as<int>(0.05);   
+    img_timediff_min = ros_subscriber_node["img_timediff_min"].as<int>(0.02);   
   }
   std::string left_topic;
   std::string right_topic;
-  int buffer_size;
-  float time_thresh;
+  std::string imu_topic;
+  int img_buffer_size;
+  int imu_buffer_size;
+  float img_timediff_max;
+  float img_timediff_min;
+  
 };
 
 struct VisualOdometryConfigs{
