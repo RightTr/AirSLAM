@@ -2,7 +2,9 @@
 
 Forked from [sair-lab/AirSLAM](https://github.com/sair-lab/AirSLAM)
 
-AirSLAM_ROS2 is a ROS2-based visual odometry and SLAM system optimized for NVIDIA Jetson platforms. This version has been specifically tested and tuned for AGX Orin (JP6).
+AirSLAM_ROS2 is a ROS2-based visual odometry and SLAM system deployed on NVIDIA Jetson platforms. This version has been specifically tested and tuned for AGX Orin (JP6).
+
+For now, it only supports online visual odometry.
 
 ---
 
@@ -21,8 +23,6 @@ Tested hardware/software configuration:
 - **Dependencies:**  
   - G2O
   - OpenCV
-  - ......
-
 
 ⚠️ Note: Ensure TensorRT and CUDA versions are compatible with your Jetson platform.
 
@@ -74,7 +74,16 @@ python node_modify.py
 ```
 
 ## Run
+- **Sequence Test:**
 ```bash
 cd air_ws
 source install/setup.bash
 ros2 launch air_slam vo_test.launch.py
+```
+
+- **Online Test:**
+```bash
+cd air_ws
+source install/setup.bash
+ros2 launch air_slam vo_online.launch.py
+```

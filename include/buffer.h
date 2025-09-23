@@ -110,6 +110,13 @@ class ImuBuffer
             return true;
         }
 
+        ImuData Front()
+        {
+            std::unique_lock<std::mutex> lock(mtx_);
+            cond_empty_.wait(lock, [this]() { return !queue_.IsEmpty(); });
+            return queue_.Front();  
+        }
+
         bool IsEmpty() const
         {
             std::lock_guard<std::mutex> lock(mtx_);

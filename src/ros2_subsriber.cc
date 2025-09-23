@@ -94,7 +94,7 @@ bool Ros2Subscriber::PopImuDataBetween(double t0, double t1, std::vector<ImuData
     return imu_measurements.size() >= 2;
 }
 
-bool Ros2Subscriber::PopImuData(sensor_msgs::msg::Imu &imu)
+bool Ros2Subscriber::PopImuData(ImuData &imu)
 {
     std::lock_guard<std::mutex> lock(imu_mtx_);
     if (imu_buffer_.IsEmpty())

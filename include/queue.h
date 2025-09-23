@@ -58,6 +58,14 @@ template <class T> class Queue
             return true;
         }
 
+        const T& Front() const
+        {
+            if(IsEmpty())
+            {
+                throw("Queue is Empty!");
+            }
+            return data[head];
+        }
 
         T Pop()
         {

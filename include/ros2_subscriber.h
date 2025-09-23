@@ -16,9 +16,9 @@ class Ros2Subscriber
 
         bool PopStereoFrame(StereoFrame &frame);
 
-        bool PopImuDataBetween(double t0, double t1, std::vector<sensor_msgs::msg::Imu> &imu_measurements)
+        bool PopImuDataBetween(double t0, double t1, std::vector<ImuData> &imu_measurements);
 
-        bool PopImuData(sensor_msgs::msg::Imu &imu)
+        bool PopImuData(ImuData &imu);
 
     private:
         rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr ros_imgl_sub_;
