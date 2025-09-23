@@ -1,14 +1,14 @@
 #include "ros2_subscriber.h"
 #include "rclcpp/qos.hpp"
 
-auto qos = rclcpp::SensorDataQoS().best_effort();
+// auto qos = rclcpp::SensorDataQoS().best_effort();
 
 Ros2Subscriber::Ros2Subscriber(const RosSubscriberConfig& ros_subscriber_config, 
     rclcpp::Node::SharedPtr node) : img_buffer_(ros_subscriber_config.img_buffer_size),
     imu_buffer_(ros_subscriber_config.imu_buffer_size), _config(ros_subscriber_config)
 {
     ros_imgl_sub_ = node->create_subscription<sensor_msgs::msg::Image>(
-        _config.left_topic, qos,
+        _config.left_topic, rclcpp::SensorDataQoS().best_effort(),
         [this](const sensor_msgs::msg::Image::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(img_mtx_);
             _ros_img_left = *msg;
@@ -18,7 +18,7 @@ Ros2Subscriber::Ros2Subscriber(const RosSubscriberConfig& ros_subscriber_config,
         });
 
     ros_imgr_sub_ = node->create_subscription<sensor_msgs::msg::Image>(
-        _config.right_topic, qos,
+        _config.right_topic, rclcpp::SensorDataQoS().best_effort(),
         [this](const sensor_msgs::msg::Image::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(img_mtx_);
             _ros_img_right = *msg;
@@ -27,7 +27,7 @@ Ros2Subscriber::Ros2Subscriber(const RosSubscriberConfig& ros_subscriber_config,
         });
 
     ros_imu_sub_ = node->create_subscription<sensor_msgs::msg::Imu>(
-    _config.imu_topic, qos,
+    _config.imu_topic, rclcpp::SensorDataQoS().reliable(),
     [this](const sensor_msgs::msg::Imu::SharedPtr msg) {
         std::lock_guard<std::mutex> lock(imu_mtx_);
         ImuData data = RosImu2ImuData(*msg);

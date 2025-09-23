@@ -54,9 +54,9 @@ ros_publisher:
 ros_subscriber:
   left_topic: "/thermal/left/image_raw"
   right_topic: "/thermal/right/image_raw"
-  imu_topic: ""
+  imu_topic: "/camera0/imu"
   img_buffer_size: 10
-  imu_buffer_size: 200
+  imu_buffer_size: 2000
   img_timediff_max: 0.05
   img_timediff_min: 0.02
  

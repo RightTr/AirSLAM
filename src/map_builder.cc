@@ -71,7 +71,9 @@ bool MapBuilder::AddInputOnline(int index){
     last_time = frame._timestamp;
   }
   else{
-    std::cout << "Pop imu data success" << std::endl;
+    std::cout << "Pop " << imu_measurements.size() << " imu data " << "between " 
+              << std::fixed << std::setprecision(9)
+              << last_time << " and " << frame._timestamp << " success" << std::endl;
     last_time = frame._timestamp;
   }
   cv::Mat image_left_rect, image_right_rect;
