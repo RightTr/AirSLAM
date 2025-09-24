@@ -50,6 +50,7 @@ bool Ros2Subscriber::PopImuDataBetween(double t0, double t1, std::vector<ImuData
     imu_measurements.clear();
 
     if (imu_buffer_.Size() < 2) return false;
+    std::cout << "Start to Pop Imu Data" << std::endl;
 
     while (imu_buffer_.Size() >= 2 && imu_buffer_.Front().timestamp < t0) {
         ImuData imu0 = imu_buffer_.Pop();

@@ -1,0 +1,3 @@
+python3 /home/rho/Documents/liuyi/nvblox_try/thermal_raw_pub.py --ros-args -p left_device:=/dev/video8 -p right_device:=/dev/video0 -p width:=640 -p height:=512 -p fps:=25 
+
+ros2 launch realsense2_camera rs_launch.py  enable_color:=false   enable_depth:=false   enable_gyro:=true   enable_accel:=true   unite_imu_method:=2

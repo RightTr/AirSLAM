@@ -134,7 +134,7 @@ private:
   MapPtr _map;
   Ros2SubscriberPtr _ros_subscriber;
 
-  double last_time;
+  double last_time{-1};
 };
 
 #endif  // MAP_BUILDER_H_

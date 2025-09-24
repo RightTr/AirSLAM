@@ -65,16 +65,22 @@ bool MapBuilder::AddInputOnline(int index){
   else{
     std::cout << "Pop frame success" << std::endl;
   }
+  if (last_time <= 0) { 
+    last_time = frame._timestamp;
+    return false; 
+  }
   std::vector<ImuData> imu_measurements;
   if(_ros_subscriber->PopImuDataBetween(last_time, frame._timestamp, imu_measurements)) {
-    return false; 
+    std::cout << "Between " << std::fixed << std::setprecision(9)
+              << last_time << " and " << frame._timestamp << std::endl;
+    std::cout << "Pop " << imu_measurements.size() << " imu data " << " success" << std::endl;
     last_time = frame._timestamp;
   }
   else{
-    std::cout << "Pop " << imu_measurements.size() << " imu data " << "between " 
-              << std::fixed << std::setprecision(9)
-              << last_time << " and " << frame._timestamp << " success" << std::endl;
+    std::cout << "Between " << std::fixed << std::setprecision(9)
+              << last_time << " and " << frame._timestamp << std::endl;
     last_time = frame._timestamp;
+    return false; 
   }
   cv::Mat image_left_rect, image_right_rect;
   _camera->UndistortImage(frame._left, frame._right, image_left_rect, image_right_rect);
