@@ -21,16 +21,16 @@
 #include "timer.h"
 #include "debug.h"
 
-MapBuilder::MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, rclcpp::Node::SharedPtr node): _shutdown(false), _feature_thread_stop(false), 
+MapBuilder::MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, RosNodePtr node): _shutdown(false), _feature_thread_stop(false),
   _tracking_thread_stop(false), _init(false), _insert_next_keyframe(false), _track_id(0), _line_track_id(0), _configs(configs), _node(node){
   _camera = std::make_shared<Camera>(_configs->camera_config_path);
   _point_matcher = std::make_shared<PointMatcher>(_configs->point_matcher_config);
   _feature_detector = std::make_shared<FeatureDetector>(_configs->plnet_config);
-  _ros_publisher = std::make_shared<Ros2Publisher>(_configs->ros_publisher_config, node);
+  _ros_publisher = std::make_shared<RosPublisher>(_configs->ros_publisher_config, node);
   _map = std::make_shared<Map>(_configs->backend_optimization_config, _camera, _ros_publisher);
 
   if (auto online_cfg = std::dynamic_pointer_cast<VisualOdometryOnlineConfigs>(_configs)) {
-      _ros_subscriber = std::make_shared<Ros2Subscriber>(online_cfg->ros_subscriber_config, node);
+      _ros_subscriber = std::make_shared<RosSubscriber>(online_cfg->ros_subscriber_config, node);
   }
 
   _feature_thread = std::thread(&MapBuilder::ExtractFeatureThread, this);
@@ -39,6 +39,10 @@ MapBuilder::MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, rc
 
 bool MapBuilder::UseIMU(){
   return _camera->UseIMU();
+}
+
+bool MapBuilder::UseLineFeatures() const {
+  return _configs->tracking_optimization_config.use_line_ba || _configs->backend_optimization_config.use_line_ba;
 }
 
 void MapBuilder::AddInput(InputDataPtr data){
@@ -129,13 +133,19 @@ void MapBuilder::ExtractFeatureThread(){
     FrameType frame_type;
     if(!_init || _insert_next_keyframe){
       Eigen::Matrix<float, 259, Eigen::Dynamic> junctions;
-      _feature_detector->Detect(image_left_rect, image_right_rect, left_features, right_features, left_lines, right_lines, junctions);
+      if(UseLineFeatures()){
+        _feature_detector->Detect(image_left_rect, image_right_rect, left_features, right_features, left_lines, right_lines, junctions);
+      }else{
+        _feature_detector->Detect(image_left_rect, image_right_rect, left_features, right_features);
+      }
       _point_matcher->MatchingPoints(left_features, right_features, stereo_matches, false);
       frame->AddLeftFeatures(left_features, left_lines);
       good_stereo_point = frame->AddRightFeatures(right_features, right_lines, stereo_matches);
       frame_type = _init ? FrameType::KeyFrame : FrameType::InitializationFrame;
 
-      frame->AddJunctions(junctions);
+      if(UseLineFeatures()){
+        frame->AddJunctions(junctions);
+      }
       // SaveLineDetectionResult(image_left_rect, left_lines, _configs.saving_dir, std::to_string(frame->GetFrameId()));
     }else{
       _feature_detector->Detect(image_left_rect, left_features);
@@ -278,10 +288,12 @@ int MapBuilder::TrackFrame(FramePtr ref_frame, FramePtr current_frame, std::vect
   // line tracking
   Eigen::Matrix<float, 259, Eigen::Dynamic>& ref_features = ref_frame->GetAllFeatures();
   Eigen::Matrix<float, 259, Eigen::Dynamic>& current_features = current_frame->GetAllFeatures();
-  std::vector<std::map<int, double>> ref_points_on_lines = ref_frame->GetPointsOnLines();
-  std::vector<std::map<int, double>> current_points_on_lines = current_frame->GetPointsOnLines();
   std::vector<int> line_matches;
-  MatchLines(ref_points_on_lines, current_points_on_lines, matches, ref_features.cols(), current_features.cols(), line_matches);
+  if(UseLineFeatures()){
+    std::vector<std::map<int, double>> ref_points_on_lines = ref_frame->GetPointsOnLines();
+    std::vector<std::map<int, double>> current_points_on_lines = current_frame->GetPointsOnLines();
+    MatchLines(ref_points_on_lines, current_points_on_lines, matches, ref_features.cols(), current_features.cols(), line_matches);
+  }
 
   std::vector<int> inliers(current_frame->FeatureNum(), -1);
   std::vector<MappointPtr> matched_mappoints(current_features.cols(), nullptr);
@@ -313,15 +325,17 @@ int MapBuilder::TrackFrame(FramePtr ref_frame, FramePtr current_frame, std::vect
     }
 
     // update line track id
-    const std::vector<MaplinePtr>& ref_frame_maplines = ref_frame->GetConstAllMaplines();
-    for(size_t i = 0; i < ref_frame_maplines.size(); i++){
-      int j = line_matches[i];
-      if(j < 0) continue;
-      int line_track_id = ref_frame->GetLineTrackId(i);
+    if(UseLineFeatures()){
+      const std::vector<MaplinePtr>& ref_frame_maplines = ref_frame->GetConstAllMaplines();
+      for(size_t i = 0; i < ref_frame_maplines.size(); i++){
+        int j = line_matches[i];
+        if(j < 0) continue;
+        int line_track_id = ref_frame->GetLineTrackId(i);
 
-      if(line_track_id >= 0){
-        current_frame->SetLineTrackId(j, line_track_id);
-        current_frame->InsertMapline(j, ref_frame_maplines[i]);
+        if(line_track_id >= 0){
+          current_frame->SetLineTrackId(j, line_track_id);
+          current_frame->InsertMapline(j, ref_frame_maplines[i]);
+        }
       }
     }
   }
@@ -522,10 +536,12 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   }
 
   // create new line track id
-  const std::vector<int>& line_track_ids = frame->GetAllLineTrackId();
-  for(size_t i = 0; i < line_track_ids.size(); i++){
-    if(line_track_ids[i] < 0){
-      frame->SetLineTrackId(i, _line_track_id++);
+  if(UseLineFeatures()){
+    const std::vector<int>& line_track_ids = frame->GetAllLineTrackId();
+    for(size_t i = 0; i < line_track_ids.size(); i++){
+      if(line_track_ids[i] < 0){
+        frame->SetLineTrackId(i, _line_track_id++);
+      }
     }
   }
 
@@ -533,7 +549,9 @@ void MapBuilder::InsertKeyframe(FramePtr frame){
   _map->InsertKeyframe(frame); 
 
   _track_id = _map->UpdateFrameTrackIds(_track_id);
-  _line_track_id = _map->UpdateFrameLineTrackIds(_line_track_id);
+  if(UseLineFeatures()){
+    _line_track_id = _map->UpdateFrameLineTrackIds(_line_track_id);
+  }
 
   Eigen::Vector3d gyr_bias, acc_bias;
   frame->GetBias(gyr_bias, acc_bias);

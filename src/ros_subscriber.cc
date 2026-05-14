@@ -1,41 +1,39 @@
-#include "ros2_subscriber.h"
-#include "rclcpp/qos.hpp"
+#include "ros_subscriber.h"
 
-// auto qos = rclcpp::SensorDataQoS().best_effort();
+#include <iomanip>
+#include <iostream>
 
-Ros2Subscriber::Ros2Subscriber(const RosSubscriberConfig& ros_subscriber_config, 
-    rclcpp::Node::SharedPtr node) : img_buffer_(ros_subscriber_config.img_buffer_size),
+RosSubscriber::RosSubscriber(const RosSubscriberConfig& ros_subscriber_config, 
+    RosNodePtr node) : img_buffer_(ros_subscriber_config.img_buffer_size),
     imu_buffer_(ros_subscriber_config.imu_buffer_size), _config(ros_subscriber_config)
 {
-    ros_imgl_sub_ = node->create_subscription<sensor_msgs::msg::Image>(
-        _config.left_topic, rclcpp::SensorDataQoS().best_effort(),
-        [this](const sensor_msgs::msg::Image::SharedPtr msg) {
+    ros_imgl_sub_ = create_subscription<ImageMsg>(
+        node, _config.left_topic, _config.img_buffer_size,
+        [this](const ImageMsgConstPtr& msg) {
             std::lock_guard<std::mutex> lock(img_mtx_);
             _ros_img_left = *msg;
-            last_left_time_ = msg->header.stamp.sec +
-                              msg->header.stamp.nanosec * 1e-9;
+            last_left_time_ = from_ros_time(msg->header.stamp);
             TryPushStereo();
         });
 
-    ros_imgr_sub_ = node->create_subscription<sensor_msgs::msg::Image>(
-        _config.right_topic, rclcpp::SensorDataQoS().best_effort(),
-        [this](const sensor_msgs::msg::Image::SharedPtr msg) {
+    ros_imgr_sub_ = create_subscription<ImageMsg>(
+        node, _config.right_topic, _config.img_buffer_size,
+        [this](const ImageMsgConstPtr& msg) {
             std::lock_guard<std::mutex> lock(img_mtx_);
             _ros_img_right = *msg;
-            last_right_time_ = msg->header.stamp.sec +
-                               msg->header.stamp.nanosec * 1e-9;
+            last_right_time_ = from_ros_time(msg->header.stamp);
         });
 
-    ros_imu_sub_ = node->create_subscription<sensor_msgs::msg::Imu>(
-    _config.imu_topic, rclcpp::SensorDataQoS().reliable(),
-    [this](const sensor_msgs::msg::Imu::SharedPtr msg) {
+    ros_imu_sub_ = create_subscription<ImuMsg>(
+    node, _config.imu_topic, _config.imu_buffer_size,
+    [this](const ImuMsgConstPtr& msg) {
         std::lock_guard<std::mutex> lock(imu_mtx_);
         ImuData data = RosImu2ImuData(*msg);
         imu_buffer_.Push(data);
     });
 }
 
-bool Ros2Subscriber::PopStereoFrame(StereoFrame &frame)
+bool RosSubscriber::PopStereoFrame(StereoFrame &frame)
 {
     std::lock_guard<std::mutex> lock(img_mtx_);
     if (img_buffer_.IsEmpty())
@@ -44,7 +42,7 @@ bool Ros2Subscriber::PopStereoFrame(StereoFrame &frame)
     return true;
 }
 
-bool Ros2Subscriber::PopImuDataBetween(double t0, double t1, std::vector<ImuData> &imu_measurements)
+bool RosSubscriber::PopImuDataBetween(double t0, double t1, std::vector<ImuData> &imu_measurements)
 {
     std::lock_guard<std::mutex> lock(imu_mtx_);
     imu_measurements.clear();
@@ -95,7 +93,7 @@ bool Ros2Subscriber::PopImuDataBetween(double t0, double t1, std::vector<ImuData
     return imu_measurements.size() >= 2;
 }
 
-bool Ros2Subscriber::PopImuData(ImuData &imu)
+bool RosSubscriber::PopImuData(ImuData &imu)
 {
     std::lock_guard<std::mutex> lock(imu_mtx_);
     if (imu_buffer_.IsEmpty())
@@ -104,7 +102,7 @@ bool Ros2Subscriber::PopImuData(ImuData &imu)
     return true;
 }
 
-void Ros2Subscriber::TryPushStereo()
+void RosSubscriber::TryPushStereo()
 {
     if (_ros_img_left.data.empty() || _ros_img_right.data.empty()) return;
 
@@ -131,8 +129,8 @@ void Ros2Subscriber::TryPushStereo()
         StereoFrame frame(left, right, last_left_time_);
         img_buffer_.Push(frame);
 
-        RCLCPP_INFO(rclcpp::get_logger("Ros2Subscriber"),
-                    "Pushed stereo frame (time %.6f)", frame._timestamp);
+        std::cout << "Pushed stereo frame (time " << std::fixed << std::setprecision(6)
+                  << frame._timestamp << ")" << std::endl;
 
         _ros_img_left.data.clear();
         _ros_img_right.data.clear();

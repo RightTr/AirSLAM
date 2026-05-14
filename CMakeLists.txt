@@ -78,14 +78,14 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/mappoint.cc
   src/mapline.cc
   src/line_processor.cc
-  src/ros2_publisher.cc
+  src/ros_publisher.cc
   src/map.cc
   src/map_builder.cc
   src/map_refiner.cc
   src/map_user.cc
   src/timer.cc
   src/debug.cc
-  src/ros2_subsriber.cc
+  src/ros_subscriber.cc
 )
 
 target_link_libraries(

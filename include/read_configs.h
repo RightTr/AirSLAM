@@ -153,7 +153,8 @@ struct OptimizationConfig{
     stereo_point = optimization_node["stereo_point"].as<double>();
     mono_line = optimization_node["mono_line"].as<double>();
     stereo_line = optimization_node["stereo_line"].as<double>();
-    rate = optimization_node["rate"].as<double>();    
+    rate = optimization_node["rate"].as<double>();
+    use_line_ba = optimization_node["use_line_ba"].as<bool>(true);
   }
 
   double mono_point;
@@ -161,6 +162,7 @@ struct OptimizationConfig{
   double mono_line;
   double stereo_line;
   double rate;
+  bool use_line_ba{true};
 };
 
 struct RosPublisherConfig{

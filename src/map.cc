@@ -22,7 +22,7 @@
 Map::Map(): _imu_init(false), imu_init_stage(0){
 }
 
-Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, Ros2PublisherPtr ros_publisher):
+Map::Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher):
     _backend_optimization_config(backend_optimization_config), _camera(camera),
     _ros_publisher(ros_publisher), _imu_init(false), imu_init_stage(0){
 }
@@ -703,53 +703,55 @@ void Map::LocalMapOptimization(FramePtr new_frame){
     }
   }
 
-  // add line constraint
-  for(auto& mpl : maplines){
-    if(!mpl || !mpl->IsValid()) continue;
+  if(_backend_optimization_config.use_line_ba){
+    // add line constraint
+    for(auto& mpl : maplines){
+      if(!mpl || !mpl->IsValid()) continue;
 
-    // vertex
-    int mpl_id = mpl->GetId();
-    Line3d line_3d;
-    line_3d.line_3d = mpl->GetLine3D();
-    line_3d.fixed = false;
+      // vertex
+      int mpl_id = mpl->GetId();
+      Line3d line_3d;
+      line_3d.line_3d = mpl->GetLine3D();
+      line_3d.fixed = false;
 
-    // constraints
-    VectorOfMonoLineConstraints tmp_mono_line_constraints;
-    VectorOfStereoLineConstraints tmp_stereo_line_constraints;
-    const std::map<int, int> obversers = mpl->GetAllObversers();
-    for(auto& kv : obversers){
-      FramePtr kf = GetFramePtr(kv.first);
-      if(!kf || (kf->local_map_optimization_frame_id != new_frame_id && kf->local_map_optimization_fix_frame_id != new_frame_id)) continue;
+      // constraints
+      VectorOfMonoLineConstraints tmp_mono_line_constraints;
+      VectorOfStereoLineConstraints tmp_stereo_line_constraints;
+      const std::map<int, int> obversers = mpl->GetAllObversers();
+      for(auto& kv : obversers){
+        FramePtr kf = GetFramePtr(kv.first);
+        if(!kf || (kf->local_map_optimization_frame_id != new_frame_id && kf->local_map_optimization_fix_frame_id != new_frame_id)) continue;
 
-      double cov = obversers.size() > 3 ? 0.1 : 0.001;
-      Eigen::Vector4d line_left, line_right;
-      if(!kf->GetLine(kv.second, line_left)) continue;
-      if(kf->GetLineRight(kv.second, line_right)){
-        StereoLineConstraintPtr stereo_line_constraint = std::shared_ptr<StereoLineConstraint>(new StereoLineConstraint()); 
-        stereo_line_constraint->id_pose = kv.first;
-        stereo_line_constraint->id_line = mpl_id;
-        stereo_line_constraint->id_camera = 0;
-        stereo_line_constraint->inlier = true;
-        stereo_line_constraint->line_2d << line_left, line_right;
-        stereo_line_constraint->pixel_sigma = cov;
-        tmp_stereo_line_constraints.push_back(stereo_line_constraint);
-      }else{
-        MonoLineConstraintPtr mono_line_constraint = std::shared_ptr<MonoLineConstraint>(new MonoLineConstraint()); 
-        mono_line_constraint->id_pose = kv.first;
-        mono_line_constraint->id_line = mpl_id;
-        mono_line_constraint->id_camera = 0;
-        mono_line_constraint->inlier = true;
-        mono_line_constraint->line_2d = line_left;
-        mono_line_constraint->pixel_sigma = cov;
-        tmp_mono_line_constraints.push_back(mono_line_constraint);
+        double cov = obversers.size() > 3 ? 0.1 : 0.001;
+        Eigen::Vector4d line_left, line_right;
+        if(!kf->GetLine(kv.second, line_left)) continue;
+        if(kf->GetLineRight(kv.second, line_right)){
+          StereoLineConstraintPtr stereo_line_constraint = std::shared_ptr<StereoLineConstraint>(new StereoLineConstraint());
+          stereo_line_constraint->id_pose = kv.first;
+          stereo_line_constraint->id_line = mpl_id;
+          stereo_line_constraint->id_camera = 0;
+          stereo_line_constraint->inlier = true;
+          stereo_line_constraint->line_2d << line_left, line_right;
+          stereo_line_constraint->pixel_sigma = cov;
+          tmp_stereo_line_constraints.push_back(stereo_line_constraint);
+        }else{
+          MonoLineConstraintPtr mono_line_constraint = std::shared_ptr<MonoLineConstraint>(new MonoLineConstraint());
+          mono_line_constraint->id_pose = kv.first;
+          mono_line_constraint->id_line = mpl_id;
+          mono_line_constraint->id_camera = 0;
+          mono_line_constraint->inlier = true;
+          mono_line_constraint->line_2d = line_left;
+          mono_line_constraint->pixel_sigma = cov;
+          tmp_mono_line_constraints.push_back(mono_line_constraint);
+        }
       }
-    }
-    if(tmp_stereo_line_constraints.size() > 0 || tmp_mono_line_constraints.size() > 1){
-      lines.insert(std::pair<int, Line3d>(mpl_id, line_3d));
-      mono_line_constraints.insert(mono_line_constraints.end(),
-          tmp_mono_line_constraints.begin(), tmp_mono_line_constraints.end());
-      stereo_line_constraints.insert(stereo_line_constraints.end(),
-          tmp_stereo_line_constraints.begin(), tmp_stereo_line_constraints.end());
+      if(tmp_stereo_line_constraints.size() > 0 || tmp_mono_line_constraints.size() > 1){
+        lines.insert(std::pair<int, Line3d>(mpl_id, line_3d));
+        mono_line_constraints.insert(mono_line_constraints.end(),
+            tmp_mono_line_constraints.begin(), tmp_mono_line_constraints.end());
+        stereo_line_constraints.insert(stereo_line_constraints.end(),
+            tmp_stereo_line_constraints.begin(), tmp_stereo_line_constraints.end());
+      }
     }
   }
 
@@ -780,27 +782,29 @@ void Map::LocalMapOptimization(FramePtr new_frame){
   RemoveOutliers(outliers);
 
   // erase line outliers
-  std::vector<std::pair<FramePtr, MaplinePtr>> line_outliers;
-  for(auto& mono_line_constraint : mono_line_constraints){
-    if(!mono_line_constraint->inlier){
-      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_line_constraint->id_pose);
-      std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(mono_line_constraint->id_line);
-      if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
-        line_outliers.emplace_back(frame_it->second, mpl_it->second);
+  if(_backend_optimization_config.use_line_ba){
+    std::vector<std::pair<FramePtr, MaplinePtr>> line_outliers;
+    for(auto& mono_line_constraint : mono_line_constraints){
+      if(!mono_line_constraint->inlier){
+        std::map<int, FramePtr>::iterator frame_it = _keyframes.find(mono_line_constraint->id_pose);
+        std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(mono_line_constraint->id_line);
+        if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
+          line_outliers.emplace_back(frame_it->second, mpl_it->second);
+        }
       }
     }
-  }
 
-  for(auto& stereo_line_constraint : stereo_line_constraints){
-    if(!stereo_line_constraint->inlier){
-      std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_line_constraint->id_pose);
-      std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(stereo_line_constraint->id_line);
-      if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
-        line_outliers.emplace_back(frame_it->second, mpl_it->second);
+    for(auto& stereo_line_constraint : stereo_line_constraints){
+      if(!stereo_line_constraint->inlier){
+        std::map<int, FramePtr>::iterator frame_it = _keyframes.find(stereo_line_constraint->id_pose);
+        std::map<int, MaplinePtr>::iterator mpl_it = _maplines.find(stereo_line_constraint->id_line);
+        if(frame_it != _keyframes.end() && mpl_it != _maplines.end() && frame_it->second && mpl_it->second){
+          line_outliers.emplace_back(frame_it->second, mpl_it->second);
+        }
       }
     }
+    RemoveLineOutliers(line_outliers);
   }
-  RemoveLineOutliers(line_outliers);
 
 
   for(auto& kv : poses){
@@ -1277,7 +1281,7 @@ void Map::SaveMap(const std::string& map_root){
   WriteTxt(mappoints_file, mappoints_lines, ",");
 }
 
-void Map::SetRosPublisher(Ros2PublisherPtr ros_publisher){
+void Map::SetRosPublisher(RosPublisherPtr ros_publisher){
   _ros_publisher = ros_publisher;
 }
 

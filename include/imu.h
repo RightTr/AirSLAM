@@ -10,13 +10,12 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include <sensor_msgs/msg/imu.hpp>
-
 #include <boost/serialization/serialization.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/map.hpp>
 
+#include "ros_utils.h"
 #include "utils.h"
 
 const double IMU_EPS = 1e-4; 
@@ -39,9 +38,9 @@ struct ImuData {
 
 typedef std::vector<ImuData> ImuDataList;
 
-inline ImuData RosImu2ImuData(const sensor_msgs::msg::Imu& msg) {
+inline ImuData RosImu2ImuData(const ImuMsg& msg) {
   ImuData data;
-  data.timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9;
+  data.timestamp = from_ros_time(msg.header.stamp);
 
   data.gyr << msg.angular_velocity.x,
               msg.angular_velocity.y,

@@ -1,14 +1,14 @@
-#include "ros2_publisher.h"
+#include "ros_publisher.h"
 
 #include <Eigen/Geometry>
 
 #include "utils.h"
 
-Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rclcpp::Node::SharedPtr node): _config(ros_publisher_config)
+RosPublisher::RosPublisher(const RosPublisherConfig& ros_publisher_config, RosNodePtr node): _config(ros_publisher_config), _node(node)
 {
 
   if(_config.feature){
-    _ros_feature_pub = node->create_publisher<sensor_msgs::msg::Image>(_config.feature_topic, rclcpp::QoS(10));
+    _ros_feature_pub = create_publisher<ImageMsg>(node, _config.feature_topic, 10);
     std::function<void(const FeatureMessageConstPtr&)> publish_feature_function = 
         [&](const FeatureMessageConstPtr& feature_message){
       cv::Mat result;
@@ -30,20 +30,20 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       }
 
       auto ros_feature_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", result).toImageMsg();
-      ros_feature_msg->header.stamp = rclcpp::Time(feature_message->time * 1e9);
-      _ros_feature_pub->publish(*ros_feature_msg);
+      ros_feature_msg->header.stamp = to_ros_time(feature_message->time);
+      publish_message(_ros_feature_pub, *ros_feature_msg);
     };
   }
 
   if(_config.frame_pose){
-    _ros_frame_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(_config.frame_pose_topic, rclcpp::QoS(10));
-    _pub_latest_odometry = node->create_publisher<nav_msgs::msg::Odometry>(_config.frame_odometry_topic, rclcpp::QoS(1000));
-    _tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(node);
+    _ros_frame_pose_pub = create_publisher<PoseStampedMsg>(node, _config.frame_pose_topic, 10);
+    _pub_latest_odometry = create_publisher<OdometryMsg>(node, _config.frame_odometry_topic, 1000);
+    _tf_broadcaster = std::make_unique<RosTransformBroadcaster>(node);
 
     std::function<void(const FramePoseMessageConstPtr&)> publish_frame_pose_function = 
         [&](const FramePoseMessageConstPtr& frame_pose_message){
       geometry_msgs::msg::PoseStamped pose_stamped;
-      pose_stamped.header.stamp = rclcpp::Time(frame_pose_message->time * 1e9);
+      pose_stamped.header.stamp = to_ros_time(frame_pose_message->time);
       pose_stamped.header.frame_id = "map";
       pose_stamped.pose.position.x = frame_pose_message->pose(0, 3);
       pose_stamped.pose.position.y = frame_pose_message->pose(1, 3);
@@ -53,10 +53,10 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       pose_stamped.pose.orientation.y = q.y();
       pose_stamped.pose.orientation.z = q.z();
       pose_stamped.pose.orientation.w = q.w();
-      _ros_frame_pose_pub->publish(pose_stamped);
+      publish_message(_ros_frame_pose_pub, pose_stamped);
 
       nav_msgs::msg::Odometry odometry;
-      odometry.header.stamp = rclcpp::Time(frame_pose_message->time * 1e9);
+      odometry.header.stamp = to_ros_time(frame_pose_message->time);
       odometry.header.frame_id = "map";
       odometry.pose.pose.position.x = frame_pose_message->pose(0, 3);
       odometry.pose.pose.position.y = frame_pose_message->pose(1, 3);
@@ -65,9 +65,8 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       odometry.pose.pose.orientation.y = q.y();
       odometry.pose.pose.orientation.z = q.z();
       odometry.pose.pose.orientation.w = q.w();
-      _pub_latest_odometry->publish(odometry);
+      publish_message(_pub_latest_odometry, odometry);
       
-      static std::unique_ptr<tf2_ros::TransformBroadcaster> br;
       geometry_msgs::msg::TransformStamped transform;
       transform.header.stamp = pose_stamped.header.stamp;
       transform.header.frame_id = "map";
@@ -82,21 +81,21 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       transform.transform.rotation.z = q.z();
       transform.transform.rotation.w = q.w();
 
-      br->sendTransform(transform);
+      _tf_broadcaster->sendTransform(transform);
     };
   }
 
   if(_config.keyframe){
-    _ros_keyframe_pub = node->create_publisher<geometry_msgs::msg::PoseArray>(_config.keyframe_topic, rclcpp::QoS(10));
+    _ros_keyframe_pub = create_publisher<PoseArrayMsg>(node, _config.keyframe_topic, 10);
     _ros_keyframe_array.header.frame_id = "map";
 
-    _ros_path_pub = node->create_publisher<nav_msgs::msg::Path>(_config.path_topic, rclcpp::QoS(10));
+    _ros_path_pub = create_publisher<PathMsg>(node, _config.path_topic, 10);
     _ros_path.header.frame_id = "map";
 
     std::function<void(const KeyframeMessageConstPtr&)> publish_keyframe_function = 
         [&](const KeyframeMessageConstPtr& keyframe_message){
-      _ros_keyframe_array.header.stamp = rclcpp::Time(keyframe_message->time * 1e9); 
-      _ros_path.header.stamp = rclcpp::Time(keyframe_message->time * 1e9); 
+      _ros_keyframe_array.header.stamp = to_ros_time(keyframe_message->time);
+      _ros_path.header.stamp = to_ros_time(keyframe_message->time);
 
       std::map<int, int>::iterator it;
       for(int i = 0; i < keyframe_message->ids.size(); i++){
@@ -113,7 +112,7 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
         pose.orientation.w = q.w();
 
         geometry_msgs::msg::PoseStamped pose_stamped;
-        pose_stamped.header.stamp = rclcpp::Time(keyframe_message->times[i] * 1e9);
+        pose_stamped.header.stamp = to_ros_time(keyframe_message->times[i]);
         pose_stamped.pose = pose;
         
         it = _keyframe_id_to_index.find(keyframe_id);
@@ -127,14 +126,14 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
           _ros_path.poses[idx] = pose_stamped;
         }
       }
-      _ros_keyframe_pub->publish(_ros_keyframe_array);
-      _ros_path_pub->publish(_ros_path);
+      publish_message(_ros_keyframe_pub, _ros_keyframe_array);
+      publish_message(_ros_path_pub, _ros_path);
     };
   }
 
   
   if (_config.map){
-    _ros_map_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>(_config.map_topic, rclcpp::QoS(1));
+    _ros_map_pub = create_publisher<PointCloud2Msg>(node, _config.map_topic, 1);
 
     sensor_msgs::msg::PointCloud2 _ros_mappoints;
     _ros_mappoints.header.frame_id = "map";
@@ -142,8 +141,7 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
     std::function<void(const MapMessageConstPtr &)> publish_map_function =
         [&](const MapMessageConstPtr &map_message)
         {
-          _ros_mappoints.header.stamp =
-              rclcpp::Time(map_message->time * 1e9);
+          _ros_mappoints.header.stamp = to_ros_time(map_message->time);
 
           _ros_mappoints.height = 1;
           _ros_mappoints.width = map_message->points.size();
@@ -164,12 +162,12 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
               *iter_z = pt(2);
           }
 
-          _ros_map_pub->publish(_ros_mappoints);
+          publish_message(_ros_map_pub, _ros_mappoints);
         };
 
     // for maplines
-    _ros_mapline_pub = node->create_publisher<visualization_msgs::msg::Marker>(_config.mapline_topic, rclcpp::QoS(1));
-    _ros_maplines.header.stamp = node->get_clock()->now();
+    _ros_mapline_pub = create_publisher<MarkerMsg>(node, _config.mapline_topic, 1);
+    _ros_maplines.header.stamp = ros_now(node);
     _ros_maplines.header.frame_id = "map"; 
     _ros_maplines.pose.position.x = 0;
     _ros_maplines.pose.position.y = 0;
@@ -185,7 +183,7 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
 
     std::function<void(const MapLineMessageConstPtr&)> publish_mapline_function = 
         [&](const MapLineMessageConstPtr& mapline_message){
-      _ros_maplines.header.stamp = rclcpp::Time(mapline_message->time * 1e9);
+      _ros_maplines.header.stamp = to_ros_time(mapline_message->time);
 
       std::unordered_map<int, int>::iterator it;
       for(int i = 0; i < mapline_message->ids.size(); i++){
@@ -222,14 +220,14 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
           _ros_maplines.points[idx+1].z = mapline_message->lines[i](5);
         }
       }
-      _ros_mapline_pub->publish(_ros_maplines);
+      publish_message(_ros_mapline_pub, _ros_maplines);
     };
   }
 
   if(_config.reloc){
     // for relocalization trajectory
-    _ros_reloc_traj_pub = node->create_publisher<visualization_msgs::msg::Marker>(_config.reloc_topic+"/trajectory", rclcpp::QoS(1));
-    _ros_reloc_traj.header.stamp = node->get_clock()->now();
+    _ros_reloc_traj_pub = create_publisher<MarkerMsg>(node, _config.reloc_topic+"/trajectory", 1);
+    _ros_reloc_traj.header.stamp = ros_now(node);
     _ros_reloc_traj.header.frame_id = "map"; 
     _ros_reloc_traj.pose.position.x = 0;
     _ros_reloc_traj.pose.position.y = 0;
@@ -264,17 +262,17 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       p.z = reloc_message->poses[idx](2, 3);
       _ros_reloc_traj.points.push_back(p);
 
-      _ros_reloc_traj_pub->publish(_ros_reloc_traj);
+      publish_message(_ros_reloc_traj_pub, _ros_reloc_traj);
     };
 
 
     // for current pose
-    _ros_reloc_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(_config.reloc_topic+"/pose", rclcpp::QoS(10));
+    _ros_reloc_pose_pub = create_publisher<PoseStampedMsg>(node, _config.reloc_topic+"/pose", 10);
     std::function<void(const RelocMessageConstPtr&)> publish_reloc_pose_function = 
         [&](const RelocMessageConstPtr& reloc_message){
       int idx = reloc_message->times.size() - 1;
       geometry_msgs::msg::PoseStamped pose_stamped;
-      pose_stamped.header.stamp = rclcpp::Time(reloc_message->times[idx] * 1e9);
+      pose_stamped.header.stamp = to_ros_time(reloc_message->times[idx]);
       pose_stamped.header.frame_id = "map";
       pose_stamped.pose.position.x = reloc_message->poses[idx](0, 3);
       pose_stamped.pose.position.y = reloc_message->poses[idx](1, 3);
@@ -284,16 +282,16 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
       pose_stamped.pose.orientation.y = q.y();
       pose_stamped.pose.orientation.z = q.z();
       pose_stamped.pose.orientation.w = q.w();
-      _ros_reloc_pose_pub->publish(pose_stamped);
+      publish_message(_ros_reloc_pose_pub, pose_stamped);
     };
 
     // for matches
-    _ros_reloc_mpts_pub = node->create_publisher<visualization_msgs::msg::Marker>(_config.reloc_topic+"/matches", rclcpp::QoS(1));
+    _ros_reloc_mpts_pub = create_publisher<MarkerMsg>(node, _config.reloc_topic+"/matches", 1);
     std::function<void(const RelocMessageConstPtr&)> publish_reloc_mpts_function = 
         [&](const RelocMessageConstPtr& reloc_message){
       int idx = reloc_message->times.size() - 1;
       visualization_msgs::msg::Marker ros_reloc_mpts;
-      ros_reloc_mpts.header.stamp = rclcpp::Time(reloc_message->times[idx] * 1e9);
+      ros_reloc_mpts.header.stamp = to_ros_time(reloc_message->times[idx]);
       ros_reloc_mpts.header.frame_id = "map"; 
       ros_reloc_mpts.pose.position.x = 0;
       ros_reloc_mpts.pose.position.y = 0;
@@ -329,13 +327,13 @@ Ros2Publisher::Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rcl
         ros_reloc_mpts.colors.push_back(color);
         ros_reloc_mpts.colors.push_back(color);
       }
-      _ros_reloc_mpts_pub->publish(ros_reloc_mpts);
+      publish_message(_ros_reloc_mpts_pub, ros_reloc_mpts);
     };
   }
 
 }
 
-void Ros2Publisher::PublishFeature(FeatureMessagePtr feature_message) {
+void RosPublisher::PublishFeature(FeatureMessagePtr feature_message) {
     if (_ros_feature_pub) {
       cv::Mat result;
       if(feature_message->fm_type == FeatureMessageType::RelocFeature){
@@ -356,15 +354,15 @@ void Ros2Publisher::PublishFeature(FeatureMessagePtr feature_message) {
       }
 
       auto ros_feature_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", result).toImageMsg();
-      ros_feature_msg->header.stamp = rclcpp::Time(feature_message->time * 1e9);
-      _ros_feature_pub->publish(*ros_feature_msg);
+      ros_feature_msg->header.stamp = to_ros_time(feature_message->time);
+      publish_message(_ros_feature_pub, *ros_feature_msg);
     }
 }
 
-void Ros2Publisher::PublishFramePose(FramePoseMessagePtr frame_pose_message) {
+void RosPublisher::PublishFramePose(FramePoseMessagePtr frame_pose_message) {
     if (_ros_frame_pose_pub) {
       geometry_msgs::msg::PoseStamped pose_stamped;
-      pose_stamped.header.stamp = rclcpp::Time(frame_pose_message->time * 1e9);
+      pose_stamped.header.stamp = to_ros_time(frame_pose_message->time);
       pose_stamped.header.frame_id = "map";
       pose_stamped.pose.position.x = frame_pose_message->pose(0, 3);
       pose_stamped.pose.position.y = frame_pose_message->pose(1, 3);
@@ -374,10 +372,10 @@ void Ros2Publisher::PublishFramePose(FramePoseMessagePtr frame_pose_message) {
       pose_stamped.pose.orientation.y = q.y();
       pose_stamped.pose.orientation.z = q.z();
       pose_stamped.pose.orientation.w = q.w();
-      _ros_frame_pose_pub->publish(pose_stamped);
+      publish_message(_ros_frame_pose_pub, pose_stamped);
 
       nav_msgs::msg::Odometry odometry;
-      odometry.header.stamp = rclcpp::Time(frame_pose_message->time * 1e9);
+      odometry.header.stamp = to_ros_time(frame_pose_message->time);
       odometry.header.frame_id = "map";
       odometry.pose.pose.position.x = frame_pose_message->pose(0, 3);
       odometry.pose.pose.position.y = frame_pose_message->pose(1, 3);
@@ -386,7 +384,7 @@ void Ros2Publisher::PublishFramePose(FramePoseMessagePtr frame_pose_message) {
       odometry.pose.pose.orientation.y = q.y();
       odometry.pose.pose.orientation.z = q.z();
       odometry.pose.pose.orientation.w = q.w();
-      _pub_latest_odometry->publish(odometry);
+      publish_message(_pub_latest_odometry, odometry);
       
       geometry_msgs::msg::TransformStamped transform;
       transform.header.stamp = pose_stamped.header.stamp;
@@ -406,10 +404,10 @@ void Ros2Publisher::PublishFramePose(FramePoseMessagePtr frame_pose_message) {
     }
 }
 
-void Ros2Publisher::PublisheKeyframe(KeyframeMessagePtr keyframe_message) {
+void RosPublisher::PublisheKeyframe(KeyframeMessagePtr keyframe_message) {
     if (_ros_keyframe_pub) {
-      _ros_keyframe_array.header.stamp = rclcpp::Time(keyframe_message->time * 1e9); 
-      _ros_path.header.stamp = rclcpp::Time(keyframe_message->time * 1e9); 
+      _ros_keyframe_array.header.stamp = to_ros_time(keyframe_message->time);
+      _ros_path.header.stamp = to_ros_time(keyframe_message->time);
 
       std::map<int, int>::iterator it;
       for(int i = 0; i < keyframe_message->ids.size(); i++){
@@ -426,7 +424,7 @@ void Ros2Publisher::PublisheKeyframe(KeyframeMessagePtr keyframe_message) {
         pose.orientation.w = q.w();
 
         geometry_msgs::msg::PoseStamped pose_stamped;
-        pose_stamped.header.stamp = rclcpp::Time(keyframe_message->times[i] * 1e9);
+        pose_stamped.header.stamp = to_ros_time(keyframe_message->times[i]);
         pose_stamped.pose = pose;
         
         it = _keyframe_id_to_index.find(keyframe_id);
@@ -439,15 +437,15 @@ void Ros2Publisher::PublisheKeyframe(KeyframeMessagePtr keyframe_message) {
           _ros_keyframe_array.poses[idx] = pose;
           _ros_path.poses[idx] = pose_stamped;
         }
-        _ros_keyframe_pub->publish(_ros_keyframe_array);
-        _ros_path_pub->publish(_ros_path);
+        publish_message(_ros_keyframe_pub, _ros_keyframe_array);
+        publish_message(_ros_path_pub, _ros_path);
     }
   }
 }
 
-void Ros2Publisher::PublishMap(MapMessagePtr map_message) {
+void RosPublisher::PublishMap(MapMessagePtr map_message) {
     if (_ros_map_pub) {
-      _ros_mappoints.header.stamp = rclcpp::Time(map_message->time * 1e9);
+      _ros_mappoints.header.stamp = to_ros_time(map_message->time);
       _ros_mappoints.header.frame_id = "map"; 
 
       _ros_mappoints.height = 1;
@@ -469,13 +467,13 @@ void Ros2Publisher::PublishMap(MapMessagePtr map_message) {
           *iter_z = pt(2);
       }
 
-      _ros_map_pub->publish(_ros_mappoints);
+      publish_message(_ros_map_pub, _ros_mappoints);
     }
 }
 
-void Ros2Publisher::PublishMapLine(MapLineMessagePtr mapline_message) {
+void RosPublisher::PublishMapLine(MapLineMessagePtr mapline_message) {
     if (_ros_mapline_pub) {
-      _ros_maplines.header.stamp = rclcpp::Time(mapline_message->time * 1e9);
+      _ros_maplines.header.stamp = to_ros_time(mapline_message->time);
       _ros_maplines.header.frame_id = "map"; 
 
       std::unordered_map<int, int>::iterator it;
@@ -513,11 +511,11 @@ void Ros2Publisher::PublishMapLine(MapLineMessagePtr mapline_message) {
           _ros_maplines.points[idx+1].z = mapline_message->lines[i](5);
         }
       }
-      _ros_mapline_pub->publish(_ros_maplines);
+      publish_message(_ros_mapline_pub, _ros_maplines);
     }
 }
 
-void Ros2Publisher::PubRelocResults(RelocMessagePtr reloc_message) {
+void RosPublisher::PubRelocResults(RelocMessagePtr reloc_message) {
     if (_ros_reloc_traj_pub) {
       _ros_reloc_traj.scale.x = 0.8 * reloc_message->map_scale;  
       _ros_reloc_traj.scale.y = 0.8 * reloc_message->map_scale;
@@ -532,12 +530,12 @@ void Ros2Publisher::PubRelocResults(RelocMessagePtr reloc_message) {
       p.y = reloc_message->poses[idx](1, 3);
       p.z = reloc_message->poses[idx](2, 3);
       _ros_reloc_traj.points.push_back(p);
-      _ros_reloc_traj_pub->publish(_ros_reloc_traj);
+      publish_message(_ros_reloc_traj_pub, _ros_reloc_traj);
     }
     if (_ros_reloc_pose_pub) {
       int idx = reloc_message->times.size() - 1;
       geometry_msgs::msg::PoseStamped pose_stamped;
-      pose_stamped.header.stamp = rclcpp::Time(reloc_message->times[idx] * 1e9);
+      pose_stamped.header.stamp = to_ros_time(reloc_message->times[idx]);
       pose_stamped.header.frame_id = "map";
       pose_stamped.pose.position.x = reloc_message->poses[idx](0, 3);
       pose_stamped.pose.position.y = reloc_message->poses[idx](1, 3);
@@ -547,12 +545,12 @@ void Ros2Publisher::PubRelocResults(RelocMessagePtr reloc_message) {
       pose_stamped.pose.orientation.y = q.y();
       pose_stamped.pose.orientation.z = q.z();
       pose_stamped.pose.orientation.w = q.w();
-      _ros_reloc_pose_pub->publish(pose_stamped);
+      publish_message(_ros_reloc_pose_pub, pose_stamped);
     }
     if (_ros_reloc_mpts_pub) {
       int idx = reloc_message->times.size() - 1;
       visualization_msgs::msg::Marker ros_reloc_mpts;
-      ros_reloc_mpts.header.stamp = rclcpp::Time(reloc_message->times[idx] * 1e9);
+      ros_reloc_mpts.header.stamp = to_ros_time(reloc_message->times[idx]);
       ros_reloc_mpts.header.frame_id = "map"; 
       ros_reloc_mpts.pose.position.x = 0;
       ros_reloc_mpts.pose.position.y = 0;
@@ -587,11 +585,11 @@ void Ros2Publisher::PubRelocResults(RelocMessagePtr reloc_message) {
         ros_reloc_mpts.colors.push_back(color);
         ros_reloc_mpts.colors.push_back(color);
       }
-      _ros_reloc_mpts_pub->publish(ros_reloc_mpts);
+      publish_message(_ros_reloc_mpts_pub, ros_reloc_mpts);
     }
 }
 
-void Ros2Publisher::Clear() {
+void RosPublisher::Clear() {
   _keyframe_id_to_index.clear();
   _ros_keyframe_array.poses.clear();
   _ros_path.poses.clear();
@@ -604,25 +602,25 @@ void Ros2Publisher::Clear() {
   _ros_maplines.colors.clear();
 }
 
-void Ros2Publisher::ShutDown() {
+void RosPublisher::ShutDown() {
   if (_config.feature) {
-      _ros_feature_pub.reset();
+      shutdown_publisher(_ros_feature_pub);
   }
   if (_config.frame_pose) {
-      _ros_frame_pose_pub.reset();
-      _pub_latest_odometry.reset();
+      shutdown_publisher(_ros_frame_pose_pub);
+      shutdown_publisher(_pub_latest_odometry);
   }
   if (_config.keyframe) {
-      _ros_keyframe_pub.reset();
-      _ros_path_pub.reset();
+      shutdown_publisher(_ros_keyframe_pub);
+      shutdown_publisher(_ros_path_pub);
   }
   if (_config.map) {
-      _ros_map_pub.reset();
-      _ros_mapline_pub.reset();
+      shutdown_publisher(_ros_map_pub);
+      shutdown_publisher(_ros_mapline_pub);
   }
   if (_config.reloc) {
-      _ros_reloc_traj_pub.reset();
-      _ros_reloc_pose_pub.reset();
-      _ros_reloc_mpts_pub.reset();
+      shutdown_publisher(_ros_reloc_traj_pub);
+      shutdown_publisher(_ros_reloc_pose_pub);
+      shutdown_publisher(_ros_reloc_mpts_pub);
   }
 }

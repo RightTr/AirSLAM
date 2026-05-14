@@ -16,7 +16,8 @@
 #include "point_matcher.h"
 #include "line_processor.h"
 #include "map.h"
-#include "ros2_publisher.h"
+#include "ros_utils.h"
+#include "ros_publisher.h"
 #include "g2o_optimization/types.h"
 #include "bow/database.h"
 
@@ -40,7 +41,7 @@ struct LoopFramePair{
 class MapRefiner{
 public:
   MapRefiner();
-  MapRefiner(MapRefinementConfigs& configs, rclcpp::Node::SharedPtr node);
+  MapRefiner(MapRefinementConfigs& configs, RosNodePtr node);
 
   void LoadMap(const std::string& map_root);
 
@@ -94,14 +95,14 @@ private:
   DatabasePtr _database;
 
   // for visualization
-  Ros2PublisherPtr _ros_publisher;
+  RosPublisherPtr _ros_publisher;
   std::mutex _map_mutex;
   bool _stop;
   bool _stopped;
   bool _map_ready;
   std::thread _visualization_thread;
 
-  rclcpp::Node::SharedPtr _node;
+  RosNodePtr _node;
 };
 
 #endif  // MAP_REFINER_H_

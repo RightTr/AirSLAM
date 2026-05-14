@@ -16,7 +16,7 @@
 #include "mapline.h"
 #include "frame.h"
 #include "g2o_optimization/types.h"
-#include "ros2_publisher.h"
+#include "ros_publisher.h"
 #include "bow/database.h"
 
 class MapRefiner;
@@ -24,7 +24,7 @@ class MapRefiner;
 class Map{
 public:
   Map();
-  Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, Ros2PublisherPtr ros_publisher);
+  Map(OptimizationConfig& backend_optimization_config, CameraPtr camera, RosPublisherPtr ros_publisher);
   void InsertKeyframe(FramePtr frame);
   void InsertMappoint(MappointPtr mappoint);
   void InsertMapline(MaplinePtr mapline);
@@ -62,7 +62,7 @@ public:
 
   void SaveMap(const std::string& map_root);
 
-  void SetRosPublisher(Ros2PublisherPtr ros_publisher);
+  void SetRosPublisher(RosPublisherPtr ros_publisher);
   void Publish(double time, bool clear_old_message = false);
 
 
@@ -124,7 +124,7 @@ private:
   std::map<int, MaplinePtr> _maplines;
   std::map<int, FramePtr> _keyframes;
   std::vector<int> _keyframe_ids;
-  Ros2PublisherPtr _ros_publisher;
+  RosPublisherPtr _ros_publisher;
 
   // for imu
   bool _imu_init;

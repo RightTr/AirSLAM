@@ -24,10 +24,10 @@
 MapRefiner::MapRefiner(){
 }
 
-MapRefiner::MapRefiner(MapRefinementConfigs& configs, rclcpp::Node::SharedPtr node): odometry_length(0), 
+MapRefiner::MapRefiner(MapRefinementConfigs& configs, RosNodePtr node): odometry_length(0),
     _configs(configs), _node(node), _stop(false), _stopped(false), _map_ready(false){
   _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
-  _ros_publisher = std::make_shared<Ros2Publisher>(configs.ros_publisher_config, _node);
+  _ros_publisher = std::make_shared<RosPublisher>(configs.ros_publisher_config, _node);
   _visualization_thread = std::thread(boost::bind(&MapRefiner::PubMap, this));
 }
 
@@ -497,6 +497,9 @@ void MapRefiner::PoseGraphRefinement(){
     rpc->Rc1c2 = Rc1c2;
     rpc->tc1c2 = tc1c2;
     relative_pose_constraints.push_back(rpc);
+  }
+  if(it_frame != it_frame_end){
+    AddFrameVertex(it_frame->second, poses, 0, false);
   }
 
   // 2. add loop constraints
@@ -1006,7 +1009,7 @@ void MapRefiner::SaveTrajectory(std::string save_path){
 
 void MapRefiner::GlobalMapOptimization(){
   _map_mutex.lock();
-  GlobalBA(_map, _configs.map_optimization_config, true, true, 50, 40);
+  GlobalBA(_map, _configs.map_optimization_config, true, _configs.map_optimization_config.use_line_ba, 50, 40);
   _map_mutex.unlock();
 }
 
@@ -1028,14 +1031,14 @@ void MapRefiner::SaveFinalMap(std::string map_root){
 }
 
 void MapRefiner::PubMap(){
-  rclcpp::Rate loop_rate(5); 
-  while(rclcpp::ok() && !_stop){
+  RateType loop_rate(5);
+  while(ros_ok() && !_stop){
     _map_mutex.lock();
     if(_map_ready){
-      _map->Publish(_node->get_clock()->now().seconds(), true);
+      _map->Publish(from_ros_time(ros_now(_node)), true);
     }
     _map_mutex.unlock();
-    rclcpp::spin_some(_node);
+    ros_spin_some(_node);
     loop_rate.sleep(); 
   }
   std::cout << "PubMap is over" << std::endl;

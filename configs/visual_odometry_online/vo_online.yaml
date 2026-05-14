@@ -28,12 +28,14 @@ optimization:
     mono_line: 50
     stereo_line: 75
     rate: 0.5
+    use_line_ba: true
   backend:
     mono_point: 50
     stereo_point: 75
     mono_line: 50
     stereo_line: 75
     rate: 0.5
+    use_line_ba: true
 
 ros_publisher:
   feature: 1

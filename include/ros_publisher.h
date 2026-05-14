@@ -7,22 +7,9 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 
-#include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.h>
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <geometry_msgs/msg/pose_array.hpp>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <nav_msgs/msg/path.hpp>
-#include <nav_msgs/msg/odometry.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <visualization_msgs/msg/marker.hpp>
-
-#include <tf2_ros/transform_broadcaster.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
-
 #include "utils.h"
 #include "read_configs.h"
+#include "ros_utils.h"
 #include "thread_publisher.h"
 
 enum FeatureMessageType {
@@ -106,9 +93,9 @@ typedef std::shared_ptr<const RelocMessage> RelocMessageConstPtr;
 // MapLineMessageConstPtr ConvertFromROS(MapLineMessageConstPtr_ros &msg_ros);
 // RelocMessageConstPtr ConvertFromROS(RelocMessageConstPtr_ros &msg_ros);
 
-class Ros2Publisher {
+class RosPublisher {
 public:
-  Ros2Publisher(const RosPublisherConfig& ros_publisher_config, rclcpp::Node::SharedPtr node);
+  RosPublisher(const RosPublisherConfig& ros_publisher_config, RosNodePtr node);
 
   void PublishFeature(FeatureMessagePtr feature_message);
   void PublishFramePose(FramePoseMessagePtr frame_pose_message);
@@ -121,41 +108,42 @@ public:
   void ShutDown();
 
 private:
-  std::unique_ptr<tf2_ros::TransformBroadcaster> _tf_broadcaster;
+  std::unique_ptr<RosTransformBroadcaster> _tf_broadcaster;
+  RosNodePtr _node;
   
   RosPublisherConfig _config;
 
   // for publishing features
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _ros_feature_pub;
+  RosPublisher<ImageMsg> _ros_feature_pub;
   ThreadPublisher<FeatureMessage> _feature_publisher;
 
   // for publishing frame
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _ros_frame_pose_pub;
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr _pub_latest_odometry;
+  RosPublisher<PoseStampedMsg> _ros_frame_pose_pub;
+  RosPublisher<OdometryMsg> _pub_latest_odometry;
 
   // for publishing keyframes
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _ros_keyframe_pub;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _ros_path_pub;
+  RosPublisher<PoseArrayMsg> _ros_keyframe_pub;
+  RosPublisher<PathMsg> _ros_path_pub;
   std::map<int, int> _keyframe_id_to_index;
-  geometry_msgs::msg::PoseArray _ros_keyframe_array;
-  nav_msgs::msg::Path _ros_path;
+  PoseArrayMsg _ros_keyframe_array;
+  PathMsg _ros_path;
 
   // for publishing mappoints
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _ros_map_pub;
+  RosPublisher<PointCloud2Msg> _ros_map_pub;
   std::unordered_map<int, int> _mappoint_id_to_index;
-  sensor_msgs::msg::PointCloud2 _ros_mappoints;
+  PointCloud2Msg _ros_mappoints;
 
   // for publishing maplines
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr _ros_mapline_pub;
+  RosPublisher<MarkerMsg> _ros_mapline_pub;
   std::unordered_map<int, int> _mapline_id_to_index;
-  visualization_msgs::msg::Marker _ros_maplines;
+  MarkerMsg _ros_maplines;
 
   // for publishing relocalization results
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr _ros_reloc_traj_pub;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _ros_reloc_pose_pub;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr _ros_reloc_mpts_pub;
-  visualization_msgs::msg::Marker _ros_reloc_traj;
+  RosPublisher<MarkerMsg> _ros_reloc_traj_pub;
+  RosPublisher<PoseStampedMsg> _ros_reloc_pose_pub;
+  RosPublisher<MarkerMsg> _ros_reloc_mpts_pub;
+  MarkerMsg _ros_reloc_traj;
 };
-typedef std::shared_ptr<Ros2Publisher> Ros2PublisherPtr;
+typedef std::shared_ptr<RosPublisher> RosPublisherPtr;
 
 #endif  // ROS2_PUBLISHER_H_

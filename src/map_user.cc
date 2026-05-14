@@ -26,12 +26,12 @@
 MapUser::MapUser(){
 }
 
-MapUser::MapUser(RelocalizationConfigs& configs, rclcpp::Node::SharedPtr node): _configs(configs), _node(node), _stop(false){
+MapUser::MapUser(RelocalizationConfigs& configs, RosNodePtr node): _configs(configs), _node(node), _stop(false){
   _camera = std::shared_ptr<Camera>(new Camera(configs.camera_config_path));
   _feature_detector = std::shared_ptr<FeatureDetector>(new FeatureDetector(configs.plnet_config));
   _point_matcher = std::shared_ptr<PointMatcher>(new PointMatcher(configs.point_matcher_config));
   _map = std::shared_ptr<Map>(new Map());
-  _ros_publisher = std::make_shared<Ros2Publisher>(configs.ros_publisher_config, _node);;
+  _ros_publisher = std::make_shared<RosPublisher>(configs.ros_publisher_config, _node);;
 
   _reloc_message = std::shared_ptr<RelocMessage>(new RelocMessage);
 }
@@ -64,7 +64,7 @@ void MapUser::PubMap(){
   }
 
   while(!_stop){
-    double current_time = _node->get_clock()->now().seconds();;
+    double current_time = from_ros_time(ros_now(_node));
     keyframe_message->time = current_time;
     map_message->time = current_time;
     mapline_message->time = current_time;
@@ -115,7 +115,7 @@ bool MapUser::Relocalization(cv::Mat& image, Eigen::Matrix4d& pose){
   frame->AddLeftFeatures(features, feature_lines);
   frame->AddJunctions(junctions);
 
-  double now = _node->get_clock()->now().seconds();
+  double now = from_ros_time(ros_now(_node));
   if(_configs.ros_publisher_config.feature){
     FeatureMessagePtr feature_message = std::shared_ptr<FeatureMessage>(new FeatureMessage);
     feature_message->time = now;

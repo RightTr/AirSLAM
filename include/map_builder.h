@@ -16,9 +16,10 @@
 #include "line_processor.h"
 #include "feature_detector.h"
 #include "map.h"
-#include "ros2_publisher.h"
+#include "ros_utils.h"
+#include "ros_publisher.h"
 #include "g2o_optimization/types.h"
-#include "ros2_subscriber.h"
+#include "ros_subscriber.h"
 #include "read_configs.h"
 #include <variant>
 
@@ -66,7 +67,7 @@ typedef std::shared_ptr<TrackingData> TrackingDataPtr;
 
 class MapBuilder{
 public:
-  MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, rclcpp::Node::SharedPtr node);
+  MapBuilder(const std::shared_ptr<VisualOdometryConfigs>& configs, RosNodePtr node);
   bool UseIMU();
   void AddInput(InputDataPtr data);
   bool AddInputOnline(int index);
@@ -87,6 +88,7 @@ public:
 
   void Stop();
   bool IsStopped();
+  bool UseLineFeatures() const;
 
 
 private:
@@ -122,7 +124,7 @@ private:
   // for imu
   Preinteration _preinteration_keyframe;
 
-  rclcpp::Node::SharedPtr _node;
+  RosNodePtr _node;
 
 private:
   // class
@@ -130,9 +132,9 @@ private:
   CameraPtr _camera;
   PointMatcherPtr _point_matcher;
   FeatureDetectorPtr _feature_detector;
-  Ros2PublisherPtr _ros_publisher;
+  RosPublisherPtr _ros_publisher;
   MapPtr _map;
-  Ros2SubscriberPtr _ros_subscriber;
+  RosSubscriberPtr _ros_subscriber;
 
   double last_time{-1};
 };

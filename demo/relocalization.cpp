@@ -2,35 +2,27 @@
 #include <chrono>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
-#include <rclcpp/rclcpp.hpp>
 #include <thread>
 
+#include "ros_utils.h"
 #include "read_configs.h"
 #include "dataset.h"
 #include "map_user.h"
 
 int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("air_slam");
+  ros_init(argc, argv, "air_slam");
+  auto node = make_ros_node("air_slam");
 
   std::string config_path, model_dir, map_root, voc_path, traj_path;
-  node->declare_parameter("config_path", "");
-  node->declare_parameter("model_dir", "");
-  node->declare_parameter("map_root", "");
-  node->declare_parameter("voc_path", "");
-  node->declare_parameter("traj_path", "");
-
-  node->get_parameter("config_path", config_path);
-  node->get_parameter("model_dir", model_dir);
-  node->get_parameter("map_root", map_root);
-  node->get_parameter("voc_path", voc_path);
-  node->get_parameter("traj_path", traj_path);
+  ros_get_parameter(node, "config_path", config_path, std::string(""));
+  ros_get_parameter(node, "model_dir", model_dir, std::string(""));
+  ros_get_parameter(node, "map_root", map_root, std::string(""));
+  ros_get_parameter(node, "voc_path", voc_path, std::string(""));
+  ros_get_parameter(node, "traj_path", traj_path, std::string(""));
 
   RelocalizationConfigs configs(config_path, model_dir);
-  node->declare_parameter("dataroot", "");
-  node->declare_parameter("camera_config_path", "");
-  node->get_parameter("dataroot", configs.dataroot);
-  node->get_parameter("camera_config_path", configs.camera_config_path);
+  ros_get_parameter(node, "dataroot", configs.dataroot, std::string(""));
+  ros_get_parameter(node, "camera_config_path", configs.camera_config_path, std::string(""));
 
   MapUser map_user(configs, node);
   map_user.LoadMap(map_root);
@@ -47,7 +39,7 @@ int main(int argc, char **argv) {
   trajectory.emplace_back(std::make_pair(("base "+DoubleTimeToString(base_frame_time)), base_frame_pose));
 
   int success_num = 0;
-  for(size_t i = 0; i < dataset_length && rclcpp::ok(); ++i){
+  for(size_t i = 0; i < dataset_length && ros_ok(); ++i){
     std::cout << "i ====== " << i << std::endl;
 
     cv::Mat image = cv::imread(ConcatenateFolderAndFileName(configs.dataroot, image_names[i]), 0);
@@ -71,7 +63,7 @@ int main(int argc, char **argv) {
   std::cout << "sum_num = " << dataset_length << ", success_num = " << success_num << ", recall = " << (float)success_num / dataset_length << std::endl;
 
   map_user.StopVisualization();
-  rclcpp::shutdown();
+  ros_shutdown();
 
   return 0;
 }

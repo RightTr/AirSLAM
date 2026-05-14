@@ -1491,6 +1491,7 @@ void GlobalBA(MapPtr _map, const OptimizationConfig& cfg, bool point_outlier_rej
   std::map<int, MaplinePtr>& maplines = _map->GetAllMaplines();
   std::map<int, FramePtr>& keyframes = _map->GetAllKeyframes();
   CameraPtr camera = _map->GetCameraPtr();
+  const bool use_line_ba = cfg.use_line_ba;
 
   // 1. optimizer
   g2o::SparseOptimizer optimizer;
@@ -1545,18 +1546,20 @@ void GlobalBA(MapPtr _map, const OptimizationConfig& cfg, bool point_outlier_rej
 
   // 4. line vertex
   int max_line_id = max_point_id;
-  for(auto& kv : maplines){
-    MaplinePtr mpl = kv.second;
-    if(!mpl || !mpl->IsValid()) continue;
+  if(use_line_ba){
+    for(auto& kv : maplines){
+      MaplinePtr mpl = kv.second;
+      if(!mpl || !mpl->IsValid()) continue;
 
-    g2o::VertexLine3D* line_vertex = new g2o::VertexLine3D();
-    line_vertex->setEstimateData(mpl->GetLine3D());
-    int line_id = kv.first + max_point_id;
-    max_line_id = std::max(max_line_id, line_id);
-    line_vertex->setId(line_id);
-    line_vertex->setMarginalized(true);
-    line_vertex->setFixed(false);
-    optimizer.addVertex(line_vertex);
+      g2o::VertexLine3D* line_vertex = new g2o::VertexLine3D();
+      line_vertex->setEstimateData(mpl->GetLine3D());
+      int line_id = kv.first + max_point_id;
+      max_line_id = std::max(max_line_id, line_id);
+      line_vertex->setId(line_id);
+      line_vertex->setMarginalized(true);
+      line_vertex->setFixed(false);
+      optimizer.addVertex(line_vertex);
+    }
   }
   max_line_id++;
 
@@ -1684,49 +1687,51 @@ void GlobalBA(MapPtr _map, const OptimizationConfig& cfg, bool point_outlier_rej
     }
 
     // 9. line edges
-    std::vector<MaplinePtr>& frame_mpls = frame->GetAllMaplines();
-    for(size_t i = 0; i < frame_mpls.size(); i++){
-      MaplinePtr mpl = frame_mpls[i];
-      if(!mpl || !mpl->IsValid()) continue;
+    if(use_line_ba){
+      std::vector<MaplinePtr>& frame_mpls = frame->GetAllMaplines();
+      for(size_t i = 0; i < frame_mpls.size(); i++){
+        MaplinePtr mpl = frame_mpls[i];
+        if(!mpl || !mpl->IsValid()) continue;
 
-      Eigen::Vector4d line_left, line_right;
-      if(!frame->GetLine(i, line_left)) continue;
+        Eigen::Vector4d line_left, line_right;
+        if(!frame->GetLine(i, line_left)) continue;
 
-      double cov = mpl->ObverserNum() > 3 ? 0.1 : 0.001;
-      int mpl_vertex_id = max_point_id + mpl->GetId();
-      if(!frame->GetLineRight(i, line_right)){
-        EdgeSE3ProjectLine* e = new EdgeSE3ProjectLine();
-        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mpl_vertex_id)));
-        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(frame_vertex_id)));
-        e->setMeasurement(line_left);
-        e->setInformation(Eigen::Matrix2d::Identity() * cov);
-        g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-        e->setRobustKernel(rk);
-        rk->setDelta(thHuberMonoLine);
+        double cov = mpl->ObverserNum() > 3 ? 0.1 : 0.001;
+        int mpl_vertex_id = max_point_id + mpl->GetId();
+        if(!frame->GetLineRight(i, line_right)){
+          EdgeSE3ProjectLine* e = new EdgeSE3ProjectLine();
+          e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mpl_vertex_id)));
+          e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(frame_vertex_id)));
+          e->setMeasurement(line_left);
+          e->setInformation(Eigen::Matrix2d::Identity() * cov);
+          g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+          e->setRobustKernel(rk);
+          rk->setDelta(thHuberMonoLine);
 
-        e->fx = fx;
-        e->fy = fy;
-        e->Kv = Kv; 
-        optimizer.addEdge(e);
-        mono_line_edges.push_back(e);
-      }else{
-        EdgeStereoSE3ProjectLine* e = new EdgeStereoSE3ProjectLine();
-        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mpl_vertex_id)));
-        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(frame_vertex_id)));
-        Vector8d line_2d;
-        line_2d << line_left, line_right;
-        e->setMeasurement(line_2d);
-        e->setInformation(Eigen::Matrix4d::Identity() * cov);
-        g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-        e->setRobustKernel(rk);
-        rk->setDelta(thHuberStereoLine);
+          e->fx = fx;
+          e->fy = fy;
+          e->Kv = Kv;
+          optimizer.addEdge(e);
+          mono_line_edges.push_back(e);
+        }else{
+          EdgeStereoSE3ProjectLine* e = new EdgeStereoSE3ProjectLine();
+          e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(mpl_vertex_id)));
+          e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(frame_vertex_id)));
+          Vector8d line_2d;
+          line_2d << line_left, line_right;
+          e->setMeasurement(line_2d);
+          e->setInformation(Eigen::Matrix4d::Identity() * cov);
+          g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+          e->setRobustKernel(rk);
+          rk->setDelta(thHuberStereoLine);
 
-        e->fx = fx;
-        e->fy = fy;
-        e->b = bf / fx;
-        e->Kv = Kv;
-        optimizer.addEdge(e);
-        stereo_line_edges.push_back(e);
+          e->fx = fx;
+          e->fy = fy;
+          e->b = bf / fx;
+          e->Kv = Kv;
+          optimizer.addEdge(e);
+          stereo_line_edges.push_back(e);
+        }
       }
     }
 
@@ -1815,7 +1820,7 @@ void GlobalBA(MapPtr _map, const OptimizationConfig& cfg, bool point_outlier_rej
     }
   }
 
-  if(line_outlier_rejection){
+  if(use_line_ba && line_outlier_rejection){
     for(size_t i=0; i < mono_line_edges.size(); i++){
       EdgeSE3ProjectLine* e = mono_line_edges[i];
       if(e->chi2() > cfg.mono_line){
@@ -1866,29 +1871,31 @@ void GlobalBA(MapPtr _map, const OptimizationConfig& cfg, bool point_outlier_rej
       mappoint_outliers.emplace_back(keyframes[frame_id], mappoints[mpt_id]);
     }
 
-    for(size_t i = 0; i < mono_line_edges.size(); i++){
-      EdgeSE3ProjectLine* e = mono_line_edges[i];
-      e->computeError();
-      if(e->chi2() <= cfg.mono_line) continue;
+    if(use_line_ba){
+      for(size_t i = 0; i < mono_line_edges.size(); i++){
+        EdgeSE3ProjectLine* e = mono_line_edges[i];
+        e->computeError();
+        if(e->chi2() <= cfg.mono_line) continue;
 
-      int mpl_vertex_id = e->vertexXn<0>()->id();
-      int frame_vertex_id = e->vertexXn<1>()->id();
-      int mpl_id = mpl_vertex_id - max_point_id;
-      int frame_id = frame_vertex_id;
-      mapline_outliers.emplace_back(keyframes[frame_id], maplines[mpl_id]);
-    }
+        int mpl_vertex_id = e->vertexXn<0>()->id();
+        int frame_vertex_id = e->vertexXn<1>()->id();
+        int mpl_id = mpl_vertex_id - max_point_id;
+        int frame_id = frame_vertex_id;
+        mapline_outliers.emplace_back(keyframes[frame_id], maplines[mpl_id]);
+      }
 
-    for(size_t i = 0; i < stereo_line_edges.size(); i++){    
-      EdgeStereoSE3ProjectLine* e = stereo_line_edges[i];
+      for(size_t i = 0; i < stereo_line_edges.size(); i++){
+        EdgeStereoSE3ProjectLine* e = stereo_line_edges[i];
 
-      e->computeError();
-      if(e->chi2() <= cfg.stereo_line) continue;
+        e->computeError();
+        if(e->chi2() <= cfg.stereo_line) continue;
 
-      int mpl_vertex_id = e->vertexXn<0>()->id();
-      int frame_vertex_id = e->vertexXn<1>()->id();
-      int mpl_id = mpl_vertex_id - max_point_id;
-      int frame_id = frame_vertex_id;
-      mapline_outliers.emplace_back(keyframes[frame_id], maplines[mpl_id]);
+        int mpl_vertex_id = e->vertexXn<0>()->id();
+        int frame_vertex_id = e->vertexXn<1>()->id();
+        int mpl_id = mpl_vertex_id - max_point_id;
+        int frame_id = frame_vertex_id;
+        mapline_outliers.emplace_back(keyframes[frame_id], maplines[mpl_id]);
+      }
     }
 
     std::cout << "mappoint_outliers = " << mappoint_outliers.size() << std::endl;
